@@ -11,8 +11,8 @@ const PORT = process.env.PORT || 3001;
 // CORS CONFIGURATION
 // ============================================================
 
-// Your Chrome extension ID (from chrome://extensions/)
-const EXTENSION_ID = 'hheknianklkefnleepjgdflanfbjmap';
+// Your Chrome extension ID (updated!)
+const EXTENSION_ID = 'hhgeknianklfnefejpjdglfanfbjmap';
 
 app.use(cors({
     origin: [
@@ -132,9 +132,7 @@ app.listen(PORT, () => {
     console.log('='.repeat(50));
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`📊 Health check: /health`);
-    console.log(`🔗 CORS allowed origins:`);
-    console.log(`   - Chrome Extension: chrome-extension://${EXTENSION_ID}`);
-    console.log(`   - Local development: http://localhost:3000, http://localhost:3001`);
+    console.log(`🔗 CORS allowed for extension ID: ${EXTENSION_ID}`);
     console.log('='.repeat(50));
     console.log('Press Ctrl+C to stop the server');
     console.log('='.repeat(50));
