@@ -1,0 +1,21 @@
+{
+  "manifest_version": 3,
+  "name": "Productivity Tracker",
+  "version": "1.0",
+  "description": "Track your daily browsing and get AI summaries",
+  "permissions": [
+    "storage",
+    "tabs",
+    "alarms"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Productivity Tracker"
+  },
+  "host_permissions": [
+    "http://localhost/*"
+  ]
+}
