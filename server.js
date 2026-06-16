@@ -1,4 +1,4 @@
-// server.js - Complete backend with proper CORS
+// server.js - Complete backend with simplified CORS
 
 const express = require('express');
 const cors = require('cors');
@@ -8,31 +8,36 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ============================================================
-// CORS CONFIGURATION
+// CORS CONFIGURATION - SIMPLIFIED
 // ============================================================
 
-// Your Chrome extension ID
 const EXTENSION_ID = 'hhgeknianklfnefejpjdglfanfbjmap';
 
+// Manual CORS middleware
+app.use((req, res, next) => {
+    // Allow your Chrome extension
+    res.header('Access-Control-Allow-Origin', `chrome-extension://${EXTENSION_ID}`);
+    // Allow all methods
+    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    // Allow headers
+    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
+    
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+        return res.sendStatus(200);
+    }
+    
+    next();
+});
+
+// Backup CORS for local development
 app.use(cors({
     origin: [
-        // Production - Chrome extension
         `chrome-extension://${EXTENSION_ID}`,
-        // Development - local testing
         'http://localhost:3000',
         'http://localhost:3001'
-    ],
-    methods: ['GET', 'POST', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization']
+    ]
 }));
-
-// Handle preflight requests - FIXED
-app.options('/*', (req, res) => {
-    res.header('Access-Control-Allow-Origin', `chrome-extension://${EXTENSION_ID}`);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-    res.sendStatus(200);
-});
 
 app.use(express.json());
 
