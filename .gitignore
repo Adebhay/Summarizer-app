@@ -1,0 +1,14 @@
+# Node.js
+node_modules/
+npm-debug.log
+package-lock.json
+
+# Node.js installation (you don't need this in repo)
+Node.js/
+
+# Environment variables
+.env
+
+# OS files
+.DS_Store
+Thumbs.dbNode.js/ 
