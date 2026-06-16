@@ -1,4 +1,4 @@
-// server.js - Complete backend with simplified CORS
+// server.js - Complete backend with correct CORS
 
 const express = require('express');
 const cors = require('cors');
@@ -8,18 +8,19 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ============================================================
-// CORS CONFIGURATION - SIMPLIFIED
+// CORS CONFIGURATION - CORRECT EXTENSION ID
 // ============================================================
 
-const EXTENSION_ID = 'hhgeknianklfnefejpjdglfanfbjmap';
+// YOUR ACTUAL EXTENSION ID - FROM chrome://extensions/
+const EXTENSION_ID = 'hhgeknianklkefnleepjgdflanfbjmap';
+
+console.log(`🔗 CORS configured for: chrome-extension://${EXTENSION_ID}`);
 
 // Manual CORS middleware
 app.use((req, res, next) => {
     // Allow your Chrome extension
     res.header('Access-Control-Allow-Origin', `chrome-extension://${EXTENSION_ID}`);
-    // Allow all methods
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    // Allow headers
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     
     // Handle preflight requests
@@ -143,6 +144,7 @@ app.listen(PORT, () => {
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`📊 Health check: /health`);
     console.log(`🔗 CORS allowed for extension ID: ${EXTENSION_ID}`);
+    console.log(`📱 Extension URL: chrome-extension://${EXTENSION_ID}`);
     console.log('='.repeat(50));
     console.log('Press Ctrl+C to stop the server');
     console.log('='.repeat(50));
