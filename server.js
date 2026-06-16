@@ -11,7 +11,7 @@ const PORT = process.env.PORT || 3001;
 // CORS CONFIGURATION
 // ============================================================
 
-// Your Chrome extension ID (updated!)
+// Your Chrome extension ID
 const EXTENSION_ID = 'hhgeknianklfnefejpjdglfanfbjmap';
 
 app.use(cors({
@@ -26,8 +26,13 @@ app.use(cors({
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-// Handle preflight requests
-app.options('*', cors());
+// Handle preflight requests - FIXED
+app.options('/*', (req, res) => {
+    res.header('Access-Control-Allow-Origin', `chrome-extension://${EXTENSION_ID}`);
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.sendStatus(200);
+});
 
 app.use(express.json());
 
