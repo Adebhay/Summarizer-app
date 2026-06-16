@@ -1,46 +1,62 @@
-// server.js - Complete backend with all endpoints
+// server.js - Complete backend with proper CORS
 
 const express = require('express');
 const cors = require('cors');
 const { generateSummary } = require('./vertex-ai');
 
-// Create your server app
 const app = express();
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 
-// Middleware
-app.use(cors());
+// ============================================================
+// CORS CONFIGURATION
+// ============================================================
+
+// Your Chrome extension ID (from chrome://extensions/)
+const EXTENSION_ID = 'hheknianklkefnleepjgdflanfbjmap';
+
+app.use(cors({
+    origin: [
+        // Production - Chrome extension
+        `chrome-extension://${EXTENSION_ID}`,
+        // Development - local testing
+        'http://localhost:3000',
+        'http://localhost:3001'
+    ],
+    methods: ['GET', 'POST', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
+}));
+
+// Handle preflight requests
+app.options('*', cors());
+
 app.use(express.json());
 
+// ============================================================
 // Store user data in memory
+// ============================================================
+
 const userData = {};
 
 // ============================================================
 // ROUTES
 // ============================================================
 
-/**
- * GET /
- * Welcome page
- */
+// Welcome page
 app.get('/', (req, res) => {
     res.json({
         message: '🚀 Productivity Tracker API is running!',
         status: 'online',
         endpoints: [
-            { path: '/', method: 'GET', description: 'This welcome page' },
-            { path: '/health', method: 'GET', description: 'Server health check' },
-            { path: '/api/activity', method: 'POST', description: 'Save activity data' },
-            { path: '/api/activity/:userId/:date', method: 'GET', description: 'Get activity data' },
+            { path: '/', method: 'GET', description: 'Welcome page' },
+            { path: '/health', method: 'GET', description: 'Health check' },
+            { path: '/api/activity', method: 'POST', description: 'Save activity' },
+            { path: '/api/activity/:userId/:date', method: 'GET', description: 'Get activity' },
             { path: '/api/summarize', method: 'POST', description: 'Generate AI summary' }
         ]
     });
 });
 
-/**
- * GET /health
- * Health check
- */
+// Health check
 app.get('/health', (req, res) => {
     res.json({
         status: 'healthy',
@@ -50,10 +66,7 @@ app.get('/health', (req, res) => {
     });
 });
 
-/**
- * POST /api/activity
- * Save user activity
- */
+// Save activity
 app.post('/api/activity', (req, res) => {
     const { userId, date, activityData } = req.body;
     
@@ -70,10 +83,7 @@ app.post('/api/activity', (req, res) => {
     });
 });
 
-/**
- * GET /api/activity/:userId/:date
- * Get user activity
- */
+// Get activity
 app.get('/api/activity/:userId/:date', (req, res) => {
     const { userId, date } = req.params;
     
@@ -85,10 +95,7 @@ app.get('/api/activity/:userId/:date', (req, res) => {
     });
 });
 
-/**
- * POST /api/summarize
- * Generate AI summary
- */
+// Generate AI summary
 app.post('/api/summarize', async (req, res) => {
     const { userId, date } = req.body;
     
@@ -96,30 +103,17 @@ app.post('/api/summarize', async (req, res) => {
     
     const activity = userData[userId]?.[date];
     if (!activity) {
-        console.log(`⚠️ No activity found for ${userId} on ${date}`);
         return res.json({ 
             success: false, 
             message: 'No activity found for this date. Browse more websites first!' 
         });
     }
     
-    // Check if there's enough data (at least 2 minutes total)
-    const totalSeconds = Object.values(activity).reduce((a, b) => a + b, 0);
-    if (totalSeconds < 120) {
-        console.log(`⚠️ Not enough data: ${totalSeconds} seconds`);
-        return res.json({ 
-            success: false, 
-            message: 'Not enough browsing data yet. Spend at least 2 minutes browsing!' 
-        });
-    }
-    
     try {
-        console.log(`📝 Sending ${Object.keys(activity).length} sites to AI...`);
         const summary = await generateSummary(activity);
-        console.log(`✅ Summary generated successfully!`);
         res.json({ success: true, summary });
     } catch (error) {
-        console.error('❌ Summary generation failed:', error.message);
+        console.error('❌ AI Error:', error.message);
         res.json({ 
             success: false, 
             error: 'Failed to generate summary',
@@ -136,8 +130,11 @@ app.listen(PORT, () => {
     console.log('='.repeat(50));
     console.log('🚀 PRODUCTIVITY TRACKER SERVER');
     console.log('='.repeat(50));
-    console.log(`✅ Server running at http://localhost:${PORT}`);
-    console.log(`📊 Health check: http://localhost:${PORT}/health`);
+    console.log(`✅ Server running on port ${PORT}`);
+    console.log(`📊 Health check: /health`);
+    console.log(`🔗 CORS allowed origins:`);
+    console.log(`   - Chrome Extension: chrome-extension://${EXTENSION_ID}`);
+    console.log(`   - Local development: http://localhost:3000, http://localhost:3001`);
     console.log('='.repeat(50));
     console.log('Press Ctrl+C to stop the server');
     console.log('='.repeat(50));
