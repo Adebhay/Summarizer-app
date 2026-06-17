@@ -1,62 +1,368 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Mentis.co - AI Productivity Coach</title>
     <style>
-        body { font-family: Arial; max-width: 800px; margin: 50px auto; padding: 20px; }
-        h1 { color: #1a73e8; }
-        .download { background: #1a73e8; color: white; padding: 15px 30px; text-decoration: none; border-radius: 5px; display: inline-block; margin: 10px 0; }
-        .step { background: #f5f5f5; padding: 15px; margin: 10px 0; border-radius: 5px; }
-        .step b { color: #1a73e8; }
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+            background: linear-gradient(135deg, #f5f7fa 0%, #e8edf5 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 900px;
+            width: 100%;
+            background: white;
+            border-radius: 24px;
+            padding: 40px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+        }
+        
+        .logo {
+            font-size: 48px;
+            font-weight: 800;
+            color: #1a73e8;
+            letter-spacing: -1px;
+        }
+        
+        .logo span {
+            color: #ea4335;
+        }
+        
+        .tagline {
+            font-size: 18px;
+            color: #5f6368;
+            margin-top: 8px;
+        }
+        
+        .badge {
+            display: inline-block;
+            background: #e6f4ea;
+            color: #1e7e34;
+            padding: 4px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            font-weight: 600;
+            margin-top: 12px;
+        }
+        
+        .features {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            margin: 30px 0;
+        }
+        
+        .feature {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 12px;
+            text-align: center;
+        }
+        
+        .feature .icon {
+            font-size: 32px;
+            margin-bottom: 8px;
+        }
+        
+        .feature h4 {
+            color: #202124;
+            font-size: 14px;
+        }
+        
+        .feature p {
+            color: #5f6368;
+            font-size: 13px;
+            margin-top: 4px;
+        }
+        
+        .download-section {
+            margin: 30px 0;
+        }
+        
+        .download-section h2 {
+            color: #202124;
+            font-size: 20px;
+            margin-bottom: 16px;
+            text-align: center;
+        }
+        
+        .download-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+        
+        .download-btn {
+            display: block;
+            padding: 16px 24px;
+            border-radius: 12px;
+            text-decoration: none;
+            color: white;
+            font-weight: 600;
+            font-size: 16px;
+            text-align: center;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+        
+        .download-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15);
+        }
+        
+        .download-btn.chrome {
+            background: #4285f4;
+        }
+        
+        .download-btn.firefox {
+            background: #ff7139;
+        }
+        
+        .download-btn.edge {
+            background: #0078d7;
+        }
+        
+        .download-btn.github {
+            background: #24292e;
+        }
+        
+        .download-btn .sub {
+            font-size: 12px;
+            font-weight: 400;
+            opacity: 0.8;
+        }
+        
+        .steps {
+            margin: 30px 0;
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 24px;
+        }
+        
+        .steps h3 {
+            color: #202124;
+            margin-bottom: 16px;
+        }
+        
+        .step {
+            display: flex;
+            align-items: flex-start;
+            padding: 10px 0;
+            border-bottom: 1px solid #e8eaed;
+        }
+        
+        .step:last-child {
+            border-bottom: none;
+        }
+        
+        .step-number {
+            background: #1a73e8;
+            color: white;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 14px;
+            flex-shrink: 0;
+            margin-right: 14px;
+        }
+        
+        .step-content {
+            color: #202124;
+            font-size: 14px;
+        }
+        
+        .step-content code {
+            background: #e8eaed;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+        
+        .test-section {
+            background: #e8f0fe;
+            border-radius: 12px;
+            padding: 24px;
+            margin: 30px 0;
+        }
+        
+        .test-section h3 {
+            color: #1a73e8;
+            margin-bottom: 12px;
+        }
+        
+        .test-section ol {
+            padding-left: 20px;
+            color: #202124;
+            font-size: 14px;
+            line-height: 1.8;
+        }
+        
+        .feedback {
+            text-align: center;
+            margin-top: 30px;
+            padding-top: 24px;
+            border-top: 1px solid #e8eaed;
+        }
+        
+        .feedback a {
+            color: #1a73e8;
+            text-decoration: none;
+            font-weight: 600;
+        }
+        
+        .feedback a:hover {
+            text-decoration: underline;
+        }
+        
+        .footer {
+            text-align: center;
+            margin-top: 30px;
+            color: #9aa0a6;
+            font-size: 13px;
+        }
+        
+        @media (max-width: 600px) {
+            .container {
+                padding: 24px;
+            }
+            .logo {
+                font-size: 32px;
+            }
+            .download-grid {
+                grid-template-columns: 1fr;
+            }
+            .features {
+                grid-template-columns: 1fr 1fr;
+            }
+        }
     </style>
 </head>
 <body>
-    <h1>🧠 Mentis.co</h1>
-    <p><i>Your AI Productivity Coach</i></p>
-    
-    <h2>📥 Download</h2>
-    <a class="download" href="mentis-chrome.crx">Download for Chrome</a>
-    <a class="download" href="mentis-firefox.zip">Download for Firefox</a>
-    <a class="download" href="mentis-edge.crx">Download for Edge</a>
-    
-    <h2>📋 Installation Guide</h2>
-    
-    <div class="step">
-        <b>Step 1:</b> Download the extension for your browser
+    <div class="container">
+        <div class="header">
+            <div class="logo">🧠 Mentis<span>.</span>co</div>
+            <p class="tagline">Your AI Productivity Coach</p>
+            <span class="badge">🚀 Open Beta - Free Testing</span>
+        </div>
+        
+        <div class="features">
+            <div class="feature">
+                <div class="icon">📊</div>
+                <h4>Track Activity</h4>
+                <p>See what you spend time on</p>
+            </div>
+            <div class="feature">
+                <div class="icon">🤖</div>
+                <h4>AI Insights</h4>
+                <p>Personalized coaching summaries</p>
+            </div>
+            <div class="feature">
+                <div class="icon">🎯</div>
+                <h4>Actionable Tips</h4>
+                <p>Improve your daily focus</p>
+            </div>
+            <div class="feature">
+                <div class="icon">🔒</div>
+                <h4>Privacy First</h4>
+                <p>Your data stays with you</p>
+            </div>
+        </div>
+        
+        <div class="download-section">
+            <h2>📥 Download the Extension</h2>
+            <div class="download-grid">
+                <a href="https://github.com/Adebhay/Summarizer-app/releases/latest" class="download-btn chrome">
+                    🟢 Chrome <span class="sub">.crx file</span>
+                </a>
+                <a href="https://github.com/Adebhay/Summarizer-app/releases/latest" class="download-btn firefox">
+                    🦊 Firefox <span class="sub">.zip file</span>
+                </a>
+                <a href="https://github.com/Adebhay/Summarizer-app/releases/latest" class="download-btn edge">
+                    🌐 Edge <span class="sub">.crx file</span>
+                </a>
+                <a href="https://github.com/Adebhay/Summarizer-app" class="download-btn github">
+                    🐙 GitHub <span class="sub">View Source Code</span>
+                </a>
+            </div>
+        </div>
+        
+        <div class="steps">
+            <h3>📋 Installation Guide</h3>
+            <div class="step">
+                <div class="step-number">1</div>
+                <div class="step-content">
+                    Download the file for your browser from above
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">2</div>
+                <div class="step-content">
+                    Open your browser's extensions page:
+                    <br>
+                    <code>chrome://extensions/</code> (Chrome/Edge) or <code>about:debugging</code> (Firefox)
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">3</div>
+                <div class="step-content">
+                    Turn ON <strong>"Developer mode"</strong> (toggle in top right)
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">4</div>
+                <div class="step-content">
+                    Drag the downloaded file into the browser window
+                </div>
+            </div>
+            <div class="step">
+                <div class="step-number">5</div>
+                <div class="step-content">
+                    Click <strong>"Add extension"</strong> when prompted
+                </div>
+            </div>
+        </div>
+        
+        <div class="test-section">
+            <h3>🧪 How to Test</h3>
+            <ol>
+                <li>Browse websites normally for <strong>5-10 minutes</strong></li>
+                <li>Click the <strong>Mentis.co icon</strong> in your browser toolbar</li>
+                <li>Click <strong>"Get AI Summary"</strong></li>
+                <li>Get your <strong>personalized coaching summary</strong>!</li>
+            </ol>
+        </div>
+        
+        <div class="feedback">
+            <p>📧 Send feedback to: <a href="mailto:masboosting1@gmail.com">masboostingi1@gmail.com</a></p>
+            <p style="margin-top:8px; font-size:14px; color:#5f6368;">
+                🐛 Found a bug? Have a suggestion? Let us know!
+            </p>
+        </div>
+        
+        <div class="footer">
+            © 2026 Mentis.co — All rights reserved
+        </div>
     </div>
-    <div class="step">
-        <b>Step 2:</b> Open your browser's extension page:
-        <br>Chrome: chrome://extensions/
-        <br>Firefox: about:debugging
-        <br>Edge: edge://extensions/
-    </div>
-    <div class="step">
-        <b>Step 3:</b> Turn ON "Developer mode"
-    </div>
-    <div class="step">
-        <b>Step 4:</b> Drag the downloaded file into the browser
-    </div>
-    <div class="step">
-        <b>Step 5:</b> Click "Add extension"
-    </div>
-    
-    <h2>🧪 How to Test</h2>
-    <div class="step">
-        <b>1.</b> Browse websites for 5-10 minutes
-    </div>
-    <div class="step">
-        <b>2.</b> Click the Mentis.co icon in your toolbar
-    </div>
-    <div class="step">
-        <b>3.</b> Click "Get AI Summary"
-    </div>
-    <div class="step">
-        <b>4.</b> Get your personalized coaching summary!
-    </div>
-    
-    <h2>📧 Feedback</h2>
-    <p>Send your feedback to: <a href="mailto:your-email@example.com">your-email@example.com</a></p>
-    
-    <p style="margin-top: 50px; color: #999;">© 2026 Mentis.co</p>
 </body>
 </html>
