@@ -1,0 +1,24 @@
+{
+  "manifest_version": 3,
+  "name": "Mentis.co - Productivity Tracker",
+  "version": "1.0.0",
+  "description": "Track your daily browsing and get AI-powered productivity insights",
+  
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  
+  "host_permissions": [
+    "https://summarizer-app-ybx8.onrender.com/*"
+  ],
+  
+  "background": {
+    "service_worker": "background.js"
+  },
+  
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Mentis.co"
+  }
+}

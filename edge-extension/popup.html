@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <style>
+        body {
+            width: 350px;
+            padding: 15px;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #f8f9fa;
+            margin: 0;
+        }
+        h3 {
+            margin: 0 0 10px 0;
+            color: #1a73e8;
+            font-size: 18px;
+        }
+        .user-id {
+            font-size: 11px;
+            color: #666;
+            margin-bottom: 12px;
+            background: #e9ecef;
+            padding: 4px 8px;
+            border-radius: 4px;
+            word-break: break-all;
+        }
+        .stats {
+            background: white;
+            padding: 12px;
+            border-radius: 8px;
+            margin: 10px 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            max-height: 250px;
+            overflow-y: auto;
+        }
+        .stats h4 {
+            margin: 0 0 8px 0;
+            color: #495057;
+            font-size: 14px;
+        }
+        .stats .site {
+            display: flex;
+            justify-content: space-between;
+            padding: 4px 0;
+            border-bottom: 1px solid #f1f3f5;
+            font-size: 13px;
+        }
+        .stats .site:last-child {
+            border-bottom: none;
+        }
+        .stats .site-name {
+            color: #212529;
+        }
+        .stats .site-time {
+            color: #6c757d;
+            font-weight: 500;
+        }
+        .stats .empty {
+            color: #6c757d;
+            font-size: 13px;
+            text-align: center;
+            padding: 15px 0;
+        }
+        button {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 14px;
+            font-weight: 500;
+            transition: background 0.2s;
+        }
+        button:hover {
+            background: #1557b0;
+        }
+        button:disabled {
+            background: #6c757d;
+            cursor: not-allowed;
+        }
+        .summary {
+            margin-top: 12px;
+            padding: 12px;
+            background: #e8f5e9;
+            border-radius: 8px;
+            font-size: 13px;
+            line-height: 1.5;
+            color: #2e7d32;
+            display: none;
+        }
+        .summary.show {
+            display: block;
+        }
+        .summary.loading {
+            background: #fff3cd;
+            color: #856404;
+        }
+        .summary.error {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        .status-dot {
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }
+        .status-dot.online {
+            background: #28a745;
+        }
+        .status-dot.offline {
+            background: #dc3545;
+        }
+        .footer {
+            margin-top: 10px;
+            font-size: 11px;
+            color: #6c757d;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <h3>[Stats] Productivity Tracker</h3>
+    <div class="user-id">ID: <span id="userId">Loading...</span></div>
+    <div id="serverStatus" style="font-size:12px; margin-bottom:8px;">
+        <span class="status-dot" id="statusDot"></span>
+        <span id="statusText">Checking server...</span>
+    </div>
+    <div class="stats" id="stats">
+        <div class="empty">No activity tracked yet today.<br>Start browsing!</div>
+    </div>
+    <button id="summarizeBtn">Get AI Summary</button>
+    <div class="summary" id="summary"></div>
+    <div class="footer">Data saved locally and to backend</div>
+
+    <script src="popup.js"></script>
+</body>
+</html>

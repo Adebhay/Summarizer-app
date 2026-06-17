@@ -1,0 +1,40 @@
+{
+  "manifest_version": 3,
+  "name": "Mentis.co - Productivity Tracker",
+  "version": "1.0.0",
+  "description": "Track your daily browsing and get AI-powered productivity insights",
+  "author": "Mentis.co",
+  
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "mentis@mentis.co",
+      "strict_min_version": "109.0"
+    }
+  },
+  
+  "permissions": [
+    "storage",
+    "tabs"
+  ],
+  
+  "host_permissions": [
+    "https://summarizer-app-ybx8.onrender.com/*"
+  ],
+  
+  "background": {
+    "scripts": [
+      "../shared-scripts/browser-polyfill.js",
+      "background.js"
+    ]
+  },
+  
+  "action": {
+    "default_popup": "popup.html",
+    "default_title": "Mentis.co"
+  },
+  
+  "icons": {
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
+  }
+}
