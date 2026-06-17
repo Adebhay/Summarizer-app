@@ -12,7 +12,7 @@ const PORT = process.env.PORT || 3001;
 // ============================================================
 
 // YOUR ACTUAL EXTENSION ID - FROM chrome://extensions/
-const EXTENSION_ID = 'hhgeknianklkefnleepjgdflanfbjmap';
+const EXTENSION_ID = 'kfjpeiadkfkgjedmfojdepkbfbhdomod';
 
 console.log(`🔗 CORS configured for: chrome-extension://${EXTENSION_ID}`);
 
