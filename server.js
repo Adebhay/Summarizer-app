@@ -1,4 +1,4 @@
-// server.js - Complete backend with enhanced AI summary
+// server.js - Complete backend with API key
 
 const express = require('express');
 const cors = require('cors');
@@ -11,24 +11,18 @@ const PORT = process.env.PORT || 3001;
 // CORS CONFIGURATION
 // ============================================================
 
-// Your Chrome extension ID (update this if it changes)
 const EXTENSION_ID = 'kfjpeiadkfkgjedmfojdepkbfbhdomod';
 
 console.log(`🔗 CORS configured for: chrome-extension://${EXTENSION_ID}`);
 
-// Manual CORS middleware
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', `chrome-extension://${EXTENSION_ID}`);
-    res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
-    
-    if (req.method === 'OPTIONS') {
-        return res.sendStatus(200);
-    }
+    res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+    res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    if (req.method === 'OPTIONS') return res.sendStatus(200);
     next();
 });
 
-// Backup CORS for local development
 app.use(cors({
     origin: [
         `chrome-extension://${EXTENSION_ID}`,
@@ -103,10 +97,7 @@ app.get('/api/activity/:userId/:date', (req, res) => {
     });
 });
 
-// ============================================================
-// GENERATE AI SUMMARY (UPDATED - PASSES USER ID)
-// ============================================================
-
+// Generate AI summary
 app.post('/api/summarize', async (req, res) => {
     const { userId, date } = req.body;
     
@@ -114,7 +105,6 @@ app.post('/api/summarize', async (req, res) => {
     
     const activity = userData[userId]?.[date];
     if (!activity) {
-        console.log(`⚠️ No activity found for ${userId} on ${date}`);
         return res.json({ 
             success: false, 
             message: 'No activity found for this date. Browse more websites first!' 
@@ -132,8 +122,7 @@ app.post('/api/summarize', async (req, res) => {
     }
     
     try {
-        // ✅ PASS USER ID TO GENERATE SUMMARY
-        console.log(`📝 Sending ${Object.keys(activity).length} sites to AI with userId: ${userId}...`);
+        console.log(`📝 Sending ${Object.keys(activity).length} sites to AI...`);
         const summary = await generateSummary(activity, userId);
         console.log(`✅ Summary generated successfully!`);
         res.json({ success: true, summary });
@@ -158,7 +147,6 @@ app.listen(PORT, () => {
     console.log(`✅ Server running on port ${PORT}`);
     console.log(`📊 Health check: /health`);
     console.log(`🔗 CORS allowed for extension ID: ${EXTENSION_ID}`);
-    console.log(`📱 Extension URL: chrome-extension://${EXTENSION_ID}`);
     console.log('='.repeat(50));
     console.log('Press Ctrl+C to stop the server');
     console.log('='.repeat(50));

@@ -1,24 +1,15 @@
-// auth.js - Handles authentication using ADC with explicit project ID
-const { GoogleAuth } = require('google-auth-library');
+// auth.js - Simplified (No JSON credentials needed)
 
-// Your project ID from Google Cloud Console
 const PROJECT_ID = 'summarizer-app-499613';
 
-async function getProjectId() {
+function getProjectId() {
     return PROJECT_ID;
 }
 
+// Export a dummy function for compatibility
 async function getAuthClient() {
-    try {
-        const auth = new GoogleAuth({
-            scopes: ['https://www.googleapis.com/auth/cloud-platform'],
-            projectId: PROJECT_ID
-        });
-        return await auth.getClient();
-    } catch (error) {
-        console.error('❌ Auth Client Error:', error);
-        throw error;
-    }
+    console.log('ℹ️ Using API key authentication (auth.js not needed)');
+    return null;
 }
 
 module.exports = { getProjectId, getAuthClient, PROJECT_ID };
