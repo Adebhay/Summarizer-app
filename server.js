@@ -16,7 +16,9 @@ const EXTENSION_ID = 'kfjpeiadkfkgjedmfojdepkbfbhdomod';
 console.log(`🔗 CORS configured for: chrome-extension://${EXTENSION_ID}`);
 
 app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', `chrome-extension://${EXTENSION_ID}`);
+    // res.header('Access-Control-Allow-Origin', `chrome-extension://${EXTENSION_ID}`);
+    // res.header('Access-Control-Allow-Origin', `${req.headers.origin}`);
+    res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     if (req.method === 'OPTIONS') return res.sendStatus(200);
