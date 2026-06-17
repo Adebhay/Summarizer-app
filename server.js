@@ -1,4 +1,4 @@
-// server.js - Complete backend with correct CORS
+// server.js - Complete backend with enhanced AI summary
 
 const express = require('express');
 const cors = require('cors');
@@ -8,26 +8,23 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // ============================================================
-// CORS CONFIGURATION - CORRECT EXTENSION ID
+// CORS CONFIGURATION
 // ============================================================
 
-// YOUR ACTUAL EXTENSION ID - FROM chrome://extensions/
+// Your Chrome extension ID (update this if it changes)
 const EXTENSION_ID = 'kfjpeiadkfkgjedmfojdepkbfbhdomod';
 
 console.log(`🔗 CORS configured for: chrome-extension://${EXTENSION_ID}`);
 
 // Manual CORS middleware
 app.use((req, res, next) => {
-    // Allow your Chrome extension
     res.header('Access-Control-Allow-Origin', `chrome-extension://${EXTENSION_ID}`);
     res.header('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
     res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization');
     
-    // Handle preflight requests
     if (req.method === 'OPTIONS') {
         return res.sendStatus(200);
     }
-    
     next();
 });
 
@@ -106,7 +103,10 @@ app.get('/api/activity/:userId/:date', (req, res) => {
     });
 });
 
-// Generate AI summary
+// ============================================================
+// GENERATE AI SUMMARY (UPDATED - PASSES USER ID)
+// ============================================================
+
 app.post('/api/summarize', async (req, res) => {
     const { userId, date } = req.body;
     
@@ -114,17 +114,31 @@ app.post('/api/summarize', async (req, res) => {
     
     const activity = userData[userId]?.[date];
     if (!activity) {
+        console.log(`⚠️ No activity found for ${userId} on ${date}`);
         return res.json({ 
             success: false, 
             message: 'No activity found for this date. Browse more websites first!' 
         });
     }
     
+    // Check if there's enough data (at least 2 minutes total)
+    const totalSeconds = Object.values(activity).reduce((a, b) => a + b, 0);
+    if (totalSeconds < 120) {
+        console.log(`⚠️ Not enough data: ${totalSeconds} seconds`);
+        return res.json({ 
+            success: false, 
+            message: 'Not enough browsing data yet. Spend at least 2 minutes browsing!' 
+        });
+    }
+    
     try {
-        const summary = await generateSummary(activity);
+        // ✅ PASS USER ID TO GENERATE SUMMARY
+        console.log(`📝 Sending ${Object.keys(activity).length} sites to AI with userId: ${userId}...`);
+        const summary = await generateSummary(activity, userId);
+        console.log(`✅ Summary generated successfully!`);
         res.json({ success: true, summary });
     } catch (error) {
-        console.error('❌ AI Error:', error.message);
+        console.error('❌ Summary generation failed:', error.message);
         res.json({ 
             success: false, 
             error: 'Failed to generate summary',
