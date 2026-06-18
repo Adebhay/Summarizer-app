@@ -12,7 +12,7 @@
 
 ## 📥 Download
 
-Download the extension from the [Releases](https://github.com/adebhay/mentis-co/releases) page.
+Download the extension from the [Releases](https://github.com/Adebhay/Summarizer-app/releases/tag/v1.0.0) page.
 
 ## 📋 Installation
 
@@ -40,7 +40,8 @@ Download the extension from the [Releases](https://github.com/adebhay/mentis-co/
 
 ## 📧 Feedback
 
-Send feedback to: masboosting1@gmail.com
+Send feedback to: adebolaayobami1@gmail.com
+
 ## 🛠️ Tech Stack
 
 - **Frontend:** Chrome Extension (Manifest V3)
