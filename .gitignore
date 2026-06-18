@@ -12,3 +12,9 @@ Node.js/
 # OS files
 .DS_Store
 Thumbs.dbNode.js/ 
+
+# Backups
+*-backup/
+*-backup
+**/*-backup/
+**/*-backup
