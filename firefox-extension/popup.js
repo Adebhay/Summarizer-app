@@ -51,10 +51,10 @@ async function loadStats() {
         if (Object.keys(todayData).length > 0) {
             displayStats(todayData);
         } else {
-            statsDiv.innerHTML = '<div class="empty">No activity tracked yet today.<br>Start browsing!</div>';
+            statsDiv.innerHTML = '<div class="empty">No activity tracked yet today.<br>Start browsing to see insights!</div>';
         }
     } catch (error) {
-        statsDiv.innerHTML = '<div class="empty">No activity tracked yet today.<br>Start browsing!</div>';
+        statsDiv.innerHTML = '<div class="empty">No activity tracked yet today.<br>Start browsing to see insights!</div>';
     }
 }
 
@@ -107,7 +107,7 @@ document.getElementById('summarizeBtn').addEventListener('click', async () => {
             summaryDiv.textContent = data.summary;
             const speakBtn = document.createElement('button');
             speakBtn.className = 'speak-btn';
-            speakBtn.textContent = 'Listen to Summary';
+            speakBtn.textContent = '🔊 Listen to Summary';
             speakBtn.onclick = () => speakSummary(data.summary);
             summaryDiv.appendChild(speakBtn);
         } else {

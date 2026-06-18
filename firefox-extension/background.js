@@ -45,26 +45,39 @@ async function saveActivity(domain, duration) {
 }
 
 // Break reminder
-browser.alarms.create('breakReminder', { periodInMinutes: 30 });
+function checkBreakReminder() {
+    const today = new Date().toISOString().split('T')[0];
+    browser.storage.local.get(['lastBreakReminder', 'activityData']).then((result) => {
+        const lastReminder = result.lastBreakReminder || '';
+        const activityData = result.activityData || {};
+        const todayData = activityData[today] || {};
+        const totalSeconds = Object.values(todayData).reduce((a, b) => a + b, 0);
+        const totalMinutes = Math.round(totalSeconds / 60);
+        
+        console.log(`Break check: ${totalMinutes} minutes today, last reminder: ${lastReminder}`);
+        
+        if (totalMinutes > 60 && lastReminder !== today) {
+            console.log('🔔 Sending break notification...');
+            browser.notifications.create({
+                type: 'basic',
+                iconUrl: 'icons/icon-128.png',
+                title: '🧠 Mentis.co - Break Reminder',
+                message: 'You\'ve been browsing for over an hour! Take a 5-minute break to rest your eyes and hydrate. 💧'
+            }).then((notificationId) => {
+                console.log('✅ Notification sent:', notificationId);
+            }).catch((error) => {
+                console.error('Notification error:', error);
+            });
+            browser.storage.local.set({ lastBreakReminder: today });
+        }
+    });
+}
+
+browser.alarms.create('breakReminder', { periodInMinutes: 15 });
 browser.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === 'breakReminder') {
-        const today = new Date().toISOString().split('T')[0];
-        browser.storage.local.get(['lastBreakReminder', 'activityData']).then((result) => {
-            const lastReminder = result.lastBreakReminder || '';
-            const activityData = result.activityData || {};
-            const todayData = activityData[today] || {};
-            const totalSeconds = Object.values(todayData).reduce((a, b) => a + b, 0);
-            const totalMinutes = Math.round(totalSeconds / 60);
-            if (totalMinutes > 60 && lastReminder !== today) {
-                browser.notifications.create({
-                    type: 'basic',
-                    iconUrl: 'icons/icon-128.png',
-                    title: 'Mentis.co - Break Reminder',
-                    message: 'You\'ve been browsing for over an hour! Take a 5-minute break.'
-                });
-                browser.storage.local.set({ lastBreakReminder: today });
-            }
-        });
+        console.log('⏰ Break reminder alarm triggered');
+        checkBreakReminder();
     }
 });
 
@@ -88,14 +101,4 @@ browser.tabs.onActivated.addListener(async (activeInfo) => {
 
 browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     if (changeInfo.url && tab.active && tab.url && tab.url.startsWith('http')) {
-        if (currentTab && currentStartTime) {
-            const duration = Date.now() - currentStartTime;
-            if (duration > 1000) await saveActivity(currentTab, duration);
-        }
-        const url = new URL(tab.url);
-        currentTab = url.hostname.replace('www.', '');
-        currentStartTime = Date.now();
-    }
-});
-
-console.log('Firefox background loaded');
+        if (currentTab && currentStart

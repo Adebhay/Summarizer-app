@@ -1,4 +1,4 @@
-// chrome-extension/popup.js
+// popup.js
 
 const SERVER_URL = 'https://summarizer-app-ybx8.onrender.com';
 
@@ -104,7 +104,7 @@ document.getElementById('summarizeBtn').addEventListener('click', async () => {
             summaryDiv.textContent = data.summary;
             const speakBtn = document.createElement('button');
             speakBtn.className = 'speak-btn';
-            speakBtn.textContent = 'Listen to Summary';
+            speakBtn.textContent = '🔊 Listen to Summary';
             speakBtn.onclick = () => speakSummary(data.summary);
             summaryDiv.appendChild(speakBtn);
         } else {
@@ -121,4 +121,4 @@ document.getElementById('summarizeBtn').addEventListener('click', async () => {
 });
 
 setInterval(loadStats, 30000);
-console.log('Chrome popup loaded');
+console.log('Popup loaded');

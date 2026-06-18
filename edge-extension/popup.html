@@ -106,7 +106,7 @@
             padding: 12px 14px;
             border-radius: 10px;
             font-size: 13px;
-            line-height: 1.6;
+            line-height: 1.8;
             display: none;
             border-left: 4px solid #34a853;
             white-space: pre-wrap;
@@ -135,7 +135,8 @@
             border-radius: 6px;
             cursor: pointer;
             font-size: 12px;
-            margin-top: 10px;
+            margin-top: 16px;
+            display: inline-block;
         }
         .summary .speak-btn:hover { background: #1557b0; }
         .footer {
@@ -151,23 +152,33 @@
     </style>
 </head>
 <body>
+    <!-- HEADER -->
     <div class="logo">Mentis<span>.</span>co</div>
     <div class="tagline">Your AI Productivity Coach</div>
+
+    <!-- USER ID -->
     <div class="user-id">ID: <span id="userId">Loading...</span></div>
+
+    <!-- SERVER STATUS -->
     <div class="server-status">
         <span class="status-dot" id="statusDot"></span>
         <span id="statusText">Checking server...</span>
     </div>
+
+    <!-- STATS -->
     <div class="stats" id="stats">
         <div class="empty">No activity tracked yet today.<br>Start browsing to see insights!</div>
     </div>
+
+    <!-- BUTTON -->
     <button class="btn-primary" id="summarizeBtn">Get AI Summary</button>
-       <!-- SUMMARY DIV - NO COPYRIGHT HERE -->
+
+    <!-- SUMMARY - NO COPYRIGHT HERE -->
     <div class="summary" id="summary"></div>
-    
-    <!-- FOOTER - COPYRIGHT HERE ONLY -->
+
+    <!-- FOOTER - COPYRIGHT ONLY HERE -->
     <div class="footer">© 2026 <span class="brand">Mentis.co</span></div>
-    
+
     <script src="popup.js"></script>
 </body>
 </html>

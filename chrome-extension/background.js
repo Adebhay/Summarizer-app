@@ -1,4 +1,4 @@
-// chrome-extension/background.js
+// background.js
 
 const API_URL = 'https://summarizer-app-ybx8.onrender.com/api/activity';
 
@@ -56,28 +56,44 @@ async function doSaveActivity(domain, duration) {
     });
 }
 
-// Break reminder
-chrome.alarms.create('breakReminder', { periodInMinutes: 30 });
+// Break reminder with better debugging
+function checkBreakReminder() {
+    const today = new Date().toISOString().split('T')[0];
+    chrome.storage.local.get(['lastBreakReminder', 'activityData'], (result) => {
+        const lastReminder = result.lastBreakReminder || '';
+        const activityData = result.activityData || {};
+        const todayData = activityData[today] || {};
+        const totalSeconds = Object.values(todayData).reduce((a, b) => a + b, 0);
+        const totalMinutes = Math.round(totalSeconds / 60);
+        
+        console.log(`Break check: ${totalMinutes} minutes today, last reminder: ${lastReminder}`);
+        
+        if (totalMinutes > 60 && lastReminder !== today) {
+            console.log('🔔 Sending break notification...');
+            chrome.notifications.create({
+                type: 'basic',
+                iconUrl: 'icons/icon-128.png',
+                title: '🧠 Mentis.co - Break Reminder',
+                message: 'You\'ve been browsing for over an hour! Take a 5-minute break to rest your eyes and hydrate. 💧',
+                priority: 2
+            }, (notificationId) => {
+                if (chrome.runtime.lastError) {
+                    console.error('Notification error:', chrome.runtime.lastError);
+                } else {
+                    console.log('✅ Notification sent:', notificationId);
+                }
+            });
+            chrome.storage.local.set({ lastBreakReminder: today });
+        }
+    });
+}
+
+// Set up alarm with proper interval
+chrome.alarms.create('breakReminder', { periodInMinutes: 15 });
 chrome.alarms.onAlarm.addListener((alarm) => {
     if (alarm.name === 'breakReminder') {
-        const today = new Date().toISOString().split('T')[0];
-        chrome.storage.local.get(['lastBreakReminder', 'activityData'], (result) => {
-            const lastReminder = result.lastBreakReminder || '';
-            const activityData = result.activityData || {};
-            const todayData = activityData[today] || {};
-            const totalSeconds = Object.values(todayData).reduce((a, b) => a + b, 0);
-            const totalMinutes = Math.round(totalSeconds / 60);
-            if (totalMinutes > 60 && lastReminder !== today) {
-                chrome.notifications.create({
-                    type: 'basic',
-                    iconUrl: 'icons/icon-128.png',
-                    title: 'Mentis.co - Break Reminder',
-                    message: 'You\'ve been browsing for over an hour! Take a 5-minute break.',
-                    priority: 2
-                });
-                chrome.storage.local.set({ lastBreakReminder: today });
-            }
-        });
+        console.log('⏰ Break reminder alarm triggered');
+        checkBreakReminder();
     }
 });
 
@@ -111,4 +127,4 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
 });
 
-console.log('Chrome background loaded');
+console.log('Background loaded');
