@@ -3,114 +3,40 @@
 <head>
     <meta charset="UTF-8">
     <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
         body {
-            width: 350px;
-            padding: 15px;
-            font-family: 'Segoe UI', Arial, sans-serif;
+            width: 380px;
+            padding: 20px;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
             background: #f8f9fa;
             margin: 0;
         }
-        .header {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            margin-bottom: 10px;
-        }
-        .header h3 {
-            margin: 0;
+        .logo {
+            font-size: 22px;
+            font-weight: 800;
             color: #1a73e8;
-            font-size: 18px;
+            letter-spacing: -0.5px;
         }
-        .header .logo {
-            font-size: 20px;
-            font-weight: bold;
-            color: #1a73e8;
+        .logo span { color: #ea4335; }
+        .tagline {
+            font-size: 11px;
+            color: #5f6368;
+            margin-top: -2px;
         }
         .user-id {
-            font-size: 11px;
+            font-size: 10px;
             color: #666;
-            margin-bottom: 12px;
             background: #e9ecef;
-            padding: 4px 8px;
-            border-radius: 4px;
-            word-break: break-all;
-        }
-        .stats {
-            background: white;
-            padding: 12px;
-            border-radius: 8px;
+            padding: 4px 10px;
+            border-radius: 12px;
             margin: 10px 0;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-            max-height: 250px;
-            overflow-y: auto;
-        }
-        .stats h4 {
-            margin: 0 0 8px 0;
-            color: #495057;
-            font-size: 14px;
-        }
-        .stats .site {
-            display: flex;
-            justify-content: space-between;
-            padding: 4px 0;
-            border-bottom: 1px solid #f1f3f5;
-            font-size: 13px;
-        }
-        .stats .site:last-child {
-            border-bottom: none;
-        }
-        .stats .site-name {
-            color: #212529;
-        }
-        .stats .site-time {
-            color: #6c757d;
-            font-weight: 500;
-        }
-        .stats .empty {
-            color: #6c757d;
-            font-size: 13px;
+            word-break: break-all;
             text-align: center;
-            padding: 15px 0;
         }
-        button {
-            background: #1a73e8;
-            color: white;
-            border: none;
-            padding: 12px;
-            border-radius: 8px;
-            cursor: pointer;
-            width: 100%;
-            font-size: 14px;
-            font-weight: 500;
-            transition: background 0.2s;
-        }
-        button:hover {
-            background: #1557b0;
-        }
-        button:disabled {
-            background: #6c757d;
-            cursor: not-allowed;
-        }
-        .summary {
-            margin-top: 12px;
-            padding: 12px;
-            background: #e8f5e9;
-            border-radius: 8px;
-            font-size: 13px;
-            line-height: 1.5;
-            color: #2e7d32;
-            display: none;
-        }
-        .summary.show {
-            display: block;
-        }
-        .summary.loading {
-            background: #fff3cd;
-            color: #856404;
-        }
-        .summary.error {
-            background: #f8d7da;
-            color: #721c24;
+        .server-status {
+            font-size: 11px;
+            text-align: center;
+            margin-bottom: 10px;
         }
         .status-dot {
             display: inline-block;
@@ -119,38 +45,129 @@
             border-radius: 50%;
             margin-right: 6px;
         }
-        .status-dot.online {
-            background: #28a745;
+        .status-dot.online { background: #34a853; }
+        .status-dot.offline { background: #ea4335; }
+        .stats {
+            background: white;
+            padding: 14px;
+            border-radius: 12px;
+            margin: 10px 0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            max-height: 260px;
+            overflow-y: auto;
         }
-        .status-dot.offline {
-            background: #dc3545;
+        .stats h4 {
+            margin: 0 0 10px 0;
+            color: #1a73e8;
+            font-size: 13px;
         }
-        .footer {
-            margin-top: 10px;
-            font-size: 11px;
-            color: #6c757d;
+        .stats .site {
+            display: flex;
+            justify-content: space-between;
+            padding: 5px 0;
+            border-bottom: 1px solid #f1f3f5;
+            font-size: 13px;
+        }
+        .stats .site:last-child { border-bottom: none; }
+        .stats .site-name { color: #202124; }
+        .stats .site-time { color: #5f6368; font-weight: 500; font-size: 12px; }
+        .stats .empty {
+            color: #5f6368;
+            font-size: 13px;
             text-align: center;
+            padding: 20px 0;
         }
+        .btn-primary {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 10px;
+            cursor: pointer;
+            width: 100%;
+            font-size: 14px;
+            font-weight: 600;
+            transition: all 0.2s ease;
+            margin-top: 10px;
+        }
+        .btn-primary:hover {
+            background: #1557b0;
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(26, 115, 232, 0.3);
+        }
+        .btn-primary:disabled {
+            background: #bdc1c6;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+        .summary {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: 10px;
+            font-size: 13px;
+            line-height: 1.6;
+            display: none;
+            border-left: 4px solid #34a853;
+            white-space: pre-wrap;
+        }
+        .summary.show { display: block; }
+        .summary.loading {
+            background: #fef7e0;
+            color: #e37400;
+            border-left-color: #f9ab00;
+        }
+        .summary.success {
+            background: #e6f4ea;
+            color: #1e7e34;
+            border-left-color: #34a853;
+        }
+        .summary.error {
+            background: #fce8e6;
+            color: #c62828;
+            border-left-color: #ea4335;
+        }
+        .summary .speak-btn {
+            background: #1a73e8;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 10px;
+        }
+        .summary .speak-btn:hover { background: #1557b0; }
+        .footer {
+            margin-top: 14px;
+            text-align: center;
+            font-size: 10px;
+            color: #9aa0a6;
+        }
+        .footer .brand { color: #1a73e8; font-weight: 600; }
+        .stats::-webkit-scrollbar { width: 4px; }
+        .stats::-webkit-scrollbar-track { background: #f1f1f1; border-radius: 4px; }
+        .stats::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
     </style>
 </head>
 <body>
-    <div class="header">
-        <span class="logo">🔥</span>
-        <h3>Mentis.co</h3>
-    </div>
+    <div class="logo">Mentis<span>.</span>co</div>
+    <div class="tagline">Your AI Productivity Coach</div>
     <div class="user-id">ID: <span id="userId">Loading...</span></div>
-    <div id="serverStatus" style="font-size:12px; margin-bottom:8px;">
+    <div class="server-status">
         <span class="status-dot" id="statusDot"></span>
         <span id="statusText">Checking server...</span>
     </div>
     <div class="stats" id="stats">
-        <div class="empty">No activity tracked yet today.<br>Start browsing!</div>
+        <div class="empty">No activity tracked yet today.<br>Start browsing to see insights!</div>
     </div>
-    <button id="summarizeBtn">Get AI Summary</button>
+    <button class="btn-primary" id="summarizeBtn">Get AI Summary</button>
+       <!-- SUMMARY DIV - NO COPYRIGHT HERE -->
     <div class="summary" id="summary"></div>
-    <div class="footer">© 2026 Mentis.co</div>
-
-    <script src="../shared-scripts/browser-polyfill.js"></script>
+    
+    <!-- FOOTER - COPYRIGHT HERE ONLY -->
+    <div class="footer">© 2026 <span class="brand">Mentis.co</span></div>
+    
     <script src="popup.js"></script>
 </body>
 </html>

@@ -1,4 +1,4 @@
-// popup.js - Firefox Extension
+// firefox-extension/popup.js
 
 const SERVER_URL = 'https://summarizer-app-ybx8.onrender.com';
 
@@ -26,31 +26,28 @@ browser.runtime.sendMessage({ type: 'getUserId' }).then((response) => {
 async function checkServer() {
     const dot = document.getElementById('statusDot');
     const text = document.getElementById('statusText');
-    
     try {
         const response = await fetch(`${SERVER_URL}/health`);
         if (response.ok) {
             dot.className = 'status-dot online';
-            text.textContent = 'Server online ✅';
+            text.textContent = 'Server online';
         } else {
             dot.className = 'status-dot offline';
-            text.textContent = 'Server offline ❌';
+            text.textContent = 'Server offline';
         }
     } catch (error) {
         dot.className = 'status-dot offline';
-        text.textContent = 'Server offline ❌';
+        text.textContent = 'Server offline';
     }
 }
 
 async function loadStats() {
     const today = new Date().toISOString().split('T')[0];
     const statsDiv = document.getElementById('stats');
-    
     try {
         const result = await browser.storage.local.get(['activityData']);
         const data = result.activityData || {};
         const todayData = data[today] || {};
-        
         if (Object.keys(todayData).length > 0) {
             displayStats(todayData);
         } else {
@@ -63,10 +60,8 @@ async function loadStats() {
 
 function displayStats(activity) {
     const statsDiv = document.getElementById('stats');
-    let html = '<h4>📋 Today\'s Activity</h4>';
-    
+    let html = '<h4>Today\'s Activity</h4>';
     const sorted = Object.entries(activity).sort((a, b) => b[1] - a[1]);
-    
     for (const [site, seconds] of sorted) {
         html += `<div class="site">
             <span class="site-name">${site}</span>
@@ -76,15 +71,29 @@ function displayStats(activity) {
     statsDiv.innerHTML = html;
 }
 
+function speakSummary(text) {
+    if ('speechSynthesis' in window) {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.rate = 0.9;
+        utterance.pitch = 1.0;
+        utterance.volume = 1.0;
+        const voices = speechSynthesis.getVoices();
+        const preferredVoice = voices.find(v => v.lang === 'en-US');
+        if (preferredVoice) utterance.voice = preferredVoice;
+        speechSynthesis.cancel();
+        speechSynthesis.speak(utterance);
+    }
+}
+
 document.getElementById('summarizeBtn').addEventListener('click', async () => {
     const button = document.getElementById('summarizeBtn');
     const summaryDiv = document.getElementById('summary');
     const today = new Date().toISOString().split('T')[0];
     
     button.disabled = true;
-    button.textContent = 'Loading...';
+    button.textContent = 'Generating...';
     summaryDiv.className = 'summary show loading';
-    summaryDiv.textContent = 'Generating your daily summary...';
+    summaryDiv.textContent = 'Analyzing your day...';
     
     try {
         const response = await fetch(`${SERVER_URL}/api/summarize`, {
@@ -92,12 +101,15 @@ document.getElementById('summarizeBtn').addEventListener('click', async () => {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId, date: today })
         });
-        
         const data = await response.json();
-        
         if (data.success) {
-            summaryDiv.className = 'summary show';
+            summaryDiv.className = 'summary show success';
             summaryDiv.textContent = data.summary;
+            const speakBtn = document.createElement('button');
+            speakBtn.className = 'speak-btn';
+            speakBtn.textContent = 'Listen to Summary';
+            speakBtn.onclick = () => speakSummary(data.summary);
+            summaryDiv.appendChild(speakBtn);
         } else {
             summaryDiv.className = 'summary show error';
             summaryDiv.textContent = data.message || 'Not enough data yet. Browse more!';
@@ -112,4 +124,4 @@ document.getElementById('summarizeBtn').addEventListener('click', async () => {
 });
 
 setInterval(loadStats, 30000);
-console.log('🔥 Firefox popup loaded!');
+console.log('Firefox popup loaded');

@@ -2,24 +2,26 @@
   "manifest_version": 3,
   "name": "Mentis.co - Smart Productivity Coach",
   "version": "1.0.0",
-  "description": "AI-powered productivity coach that summarizes your daily digital activity",
-  "author": "Mentis.co",
-  
+  "description": "Your AI-powered daily productivity coach",
   "permissions": [
     "storage",
-    "tabs"
+    "tabs",
+    "notifications",
+    "alarms"
   ],
-  
   "host_permissions": [
     "https://summarizer-app-ybx8.onrender.com/*"
   ],
-  
   "background": {
     "service_worker": "background.js"
   },
-  
   "action": {
     "default_popup": "popup.html",
     "default_title": "Mentis.co"
+  },
+  "icons": {
+    "16": "icons/icon-16.png",
+    "48": "icons/icon-48.png",
+    "128": "icons/icon-128.png"
   }
 }
