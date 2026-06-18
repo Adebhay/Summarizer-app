@@ -4,12 +4,12 @@ const SERVER_URL = 'https://summarizer-app-ybx8.onrender.com';
 
 function formatTime(seconds) {
     const minutes = Math.round(seconds / 60);
-    if (minutes < 1) return `${Math.round(seconds)}s`;
+    if (minutes < 1) return seconds + 's';
     const hours = Math.floor(minutes / 60);
     const mins = minutes % 60;
-    if (hours > 0 && mins > 0) return `${hours}h ${mins}m`;
-    if (hours > 0) return `${hours}h`;
-    return `${mins}m`;
+    if (hours > 0 && mins > 0) return hours + 'h ' + mins + 'm';
+    if (hours > 0) return hours + 'h';
+    return mins + 'm';
 }
 
 let userId = 'Loading...';
@@ -27,7 +27,7 @@ async function checkServer() {
     const dot = document.getElementById('statusDot');
     const text = document.getElementById('statusText');
     try {
-        const response = await fetch(`${SERVER_URL}/health`);
+        const response = await fetch(SERVER_URL + '/health');
         if (response.ok) {
             dot.className = 'status-dot online';
             text.textContent = 'Server online';
@@ -63,10 +63,10 @@ function displayStats(activity) {
     let html = '<h4>Today\'s Activity</h4>';
     const sorted = Object.entries(activity).sort((a, b) => b[1] - a[1]);
     for (const [site, seconds] of sorted) {
-        html += `<div class="site">
-            <span class="site-name">${site}</span>
-            <span class="site-time">${formatTime(seconds)}</span>
-        </div>`;
+        html += '<div class="site">' +
+            '<span class="site-name">' + site + '</span>' +
+            '<span class="site-time">' + formatTime(seconds) + '</span>' +
+        '</div>';
     }
     statsDiv.innerHTML = html;
 }
@@ -79,7 +79,9 @@ function speakSummary(text) {
         utterance.volume = 1.0;
         const voices = speechSynthesis.getVoices();
         const preferredVoice = voices.find(v => v.lang === 'en-US');
-        if (preferredVoice) utterance.voice = preferredVoice;
+        if (preferredVoice) {
+            utterance.voice = preferredVoice;
+        }
         speechSynthesis.cancel();
         speechSynthesis.speak(utterance);
     }
@@ -96,10 +98,10 @@ document.getElementById('summarizeBtn').addEventListener('click', async () => {
     summaryDiv.textContent = 'Analyzing your day...';
     
     try {
-        const response = await fetch(`${SERVER_URL}/api/summarize`, {
+        const response = await fetch(SERVER_URL + '/api/summarize', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ userId, date: today })
+            body: JSON.stringify({ userId: userId, date: today })
         });
         const data = await response.json();
         if (data.success) {
@@ -107,8 +109,8 @@ document.getElementById('summarizeBtn').addEventListener('click', async () => {
             summaryDiv.textContent = data.summary;
             const speakBtn = document.createElement('button');
             speakBtn.className = 'speak-btn';
-            speakBtn.textContent = '🔊 Listen to Summary';
-            speakBtn.onclick = () => speakSummary(data.summary);
+            speakBtn.textContent = 'Listen to Summary';
+            speakBtn.onclick = function() { speakSummary(data.summary); };
             summaryDiv.appendChild(speakBtn);
         } else {
             summaryDiv.className = 'summary show error';
