@@ -1,9 +1,10 @@
-// chrome-extension/background.js - Complete Clean Version
+// chrome-extension/background.js - Fixed timeline durations
 
 const API_URL = 'https://summarizer-app-ybx8.onrender.com/api/activity';
 
 let currentTab = null;
 let currentStartTime = null;
+let currentDomain = null;
 let userId = null;
 
 // Safe storage access function
@@ -86,8 +87,8 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 });
 
-// Save activity with timestamp tracking
-async function saveActivity(domain, duration) {
+// Save activity with proper start/end times
+async function saveActivity(domain, duration, startTime, endTime) {
     const storage = getStorage();
     if (!storage) {
         console.log('Storage not available, skipping save');
@@ -105,10 +106,10 @@ async function saveActivity(domain, duration) {
             storage.set({ userId: userId });
         }
     }
-    await doSaveActivity(domain, duration);
+    await doSaveActivity(domain, duration, startTime, endTime);
 }
 
-async function doSaveActivity(domain, duration) {
+async function doSaveActivity(domain, duration, startTime, endTime) {
     const storage = getStorage();
     if (!storage) return;
     
@@ -116,8 +117,10 @@ async function doSaveActivity(domain, duration) {
     const today = now.getFullYear() + '-' + 
                   String(now.getMonth() + 1).padStart(2, '0') + '-' + 
                   String(now.getDate()).padStart(2, '0');
-    const timestamp = now.toISOString();
-    const startTime = new Date(now.getTime() - duration).toISOString();
+    
+    // Use provided times or fallback to current
+    const start = startTime || new Date(now.getTime() - duration).toISOString();
+    const end = endTime || now.toISOString();
     
     console.log('📝 Saving activity for date:', today, 'domain:', domain, 'duration:', duration);
     
@@ -147,20 +150,23 @@ async function doSaveActivity(domain, duration) {
             activityData[today].totalTime = 0;
         }
         
+        // Store site time (aggregated)
         if (!activityData[today].sites[domain]) {
             activityData[today].sites[domain] = 0;
         }
         activityData[today].sites[domain] += duration;
         activityData[today].totalTime += duration;
         
+        // ✅ FIX: Store timeline entry with proper start and end times
         activityData[today].timeline.push({
             site: domain,
             duration: duration,
-            startTime: startTime,
-            endTime: timestamp,
-            timestamp: timestamp
+            startTime: start,
+            endTime: end,
+            timestamp: start
         });
         
+        // Keep only last 500 timeline entries
         if (activityData[today].timeline.length > 500) {
             activityData[today].timeline = activityData[today].timeline.slice(-500);
         }
@@ -194,7 +200,84 @@ async function doSaveActivity(domain, duration) {
     });
 }
 
-// Break reminder - COMPLETE FIXED VERSION
+// Track when user switches tabs - save the previous tab with proper end time
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+    // Save the previous tab if it was being tracked
+    if (currentTab && currentStartTime && currentDomain) {
+        const endTime = new Date().toISOString();
+        const duration = Date.now() - currentStartTime;
+        if (duration > 1000) {
+            await saveActivity(currentDomain, duration, new Date(currentStartTime).toISOString(), endTime);
+        }
+        // Clear current tracking
+        currentTab = null;
+        currentStartTime = null;
+        currentDomain = null;
+    }
+    
+    // Start tracking the new tab
+    try {
+        const tab = await chrome.tabs.get(activeInfo.tabId);
+        if (tab && tab.url && tab.url.startsWith('http')) {
+            const url = new URL(tab.url);
+            currentDomain = url.hostname.replace('www.', '');
+            currentTab = tab.id;
+            currentStartTime = Date.now();
+            console.log('🔄 Started tracking:', currentDomain);
+        } else {
+            currentTab = null;
+            currentStartTime = null;
+            currentDomain = null;
+        }
+    } catch (error) {
+        console.log('Error getting tab:', error);
+    }
+});
+
+// Track URL changes within the same tab
+chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
+    // If the URL changed and this is the active tab
+    if (changeInfo.url && tab.active && tab.url && tab.url.startsWith('http')) {
+        // Save the previous domain if it was being tracked
+        if (currentDomain && currentStartTime && currentTab === tabId) {
+            const endTime = new Date().toISOString();
+            const duration = Date.now() - currentStartTime;
+            if (duration > 1000) {
+                await saveActivity(currentDomain, duration, new Date(currentStartTime).toISOString(), endTime);
+            }
+        }
+        
+        // Start tracking the new domain
+        try {
+            const url = new URL(tab.url);
+            currentDomain = url.hostname.replace('www.', '');
+            currentTab = tabId;
+            currentStartTime = Date.now();
+            console.log('🔄 Navigated to:', currentDomain);
+        } catch (e) {
+            console.log('Error parsing URL:', e);
+        }
+    }
+});
+
+// Save when tab is closed
+chrome.tabs.onRemoved.addListener(async (tabId) => {
+    if (currentTab === tabId && currentDomain && currentStartTime) {
+        const endTime = new Date().toISOString();
+        const duration = Date.now() - currentStartTime;
+        if (duration > 1000) {
+            await saveActivity(currentDomain, duration, new Date(currentStartTime).toISOString(), endTime);
+        }
+        currentTab = null;
+        currentStartTime = null;
+        currentDomain = null;
+    }
+});
+
+// Save when browser is about to close (if possible)
+// Note: This is best effort, not guaranteed to run
+
+// Break reminder
 function checkBreakReminder() {
     const storage = getStorage();
     if (!storage) return;
@@ -261,47 +344,5 @@ try {
 } catch (e) {
     console.warn('Alarm setup error:', e);
 }
-
-// Track tab changes
-chrome.tabs.onActivated.addListener(async (activeInfo) => {
-    if (currentTab && currentStartTime) {
-        const duration = Date.now() - currentStartTime;
-        if (duration > 1000) {
-            await saveActivity(currentTab, duration);
-        }
-    }
-    try {
-        const tab = await chrome.tabs.get(activeInfo.tabId);
-        if (tab && tab.url && tab.url.startsWith('http')) {
-            const url = new URL(tab.url);
-            currentTab = url.hostname.replace('www.', '');
-            currentStartTime = Date.now();
-        } else {
-            currentTab = null;
-            currentStartTime = null;
-        }
-    } catch (error) {
-        console.log('Error getting tab:', error);
-    }
-});
-
-// Track URL changes
-chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
-    if (changeInfo.url && tab.active && tab.url && tab.url.startsWith('http')) {
-        if (currentTab && currentStartTime) {
-            const duration = Date.now() - currentStartTime;
-            if (duration > 1000) {
-                await saveActivity(currentTab, duration);
-            }
-        }
-        try {
-            const url = new URL(tab.url);
-            currentTab = url.hostname.replace('www.', '');
-            currentStartTime = Date.now();
-        } catch (e) {
-            console.log('Error parsing URL:', e);
-        }
-    }
-});
 
 console.log('🧠 Mentiis.co background loaded successfully');

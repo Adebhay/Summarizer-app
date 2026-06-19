@@ -1,4 +1,4 @@
-// chrome-extension/popup.js - Complete Updated Version with Calendar Fix
+// chrome-extension/popup.js - Complete Updated Version
 
 const SERVER_URL = 'https://summarizer-app-ybx8.onrender.com';
 
@@ -32,12 +32,23 @@ function formatTimeShort(minutes) {
     return hours + 'h ' + mins + 'm';
 }
 
+// ✅ FIXED: Proper 12-hour time formatting (no more "0 PM")
 function formatTimestamp(timestamp) {
     const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-US', { 
-        hour: '2-digit', 
-        minute: '2-digit' 
-    });
+    let hours = date.getHours();
+    const minutes = date.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    
+    // Convert 0 to 12 for midnight, keep 12 as 12 for noon
+    if (hours === 0) {
+        hours = 12;
+    } else if (hours > 12) {
+        hours = hours - 12;
+    }
+    // hours between 1-11 stay the same, 12 stays 12
+    
+    const formattedMinutes = String(minutes).padStart(2, '0');
+    return hours + ':' + formattedMinutes + ' ' + ampm;
 }
 
 // ============================================================
@@ -230,7 +241,7 @@ function loadCalendarData(date) {
     });
 }
 
-// Display timeline from local data
+// ✅ FIXED: Display timeline with proper start/end times
 function displayTimelineFromLocal(dayData, date) {
     const container = document.getElementById('timeline-list');
     
@@ -269,22 +280,24 @@ function displayTimelineFromLocal(dayData, date) {
     const sortedHours = Object.keys(grouped).sort((a, b) => a - b);
     
     sortedHours.forEach(hour => {
-        const hourLabel = hour === 0 ? '12 AM' : 
-                          hour < 12 ? hour + ' AM' : 
-                          hour === 12 ? '12 PM' : 
-                          (hour - 12) + ' PM';
+        // ✅ FIXED: Use the helper function for proper 12-hour labels
+        const hourLabel = getHourLabel(hour);
         
         html += '<div style="margin-bottom:8px;">';
         html += '<div style="font-weight:600; font-size:12px; color:#1a73e8; margin-bottom:4px;">' + hourLabel + '</div>';
         
         grouped[hour].forEach(entry => {
-            const startTime = formatTimestamp(entry.startTime);
-            const endTime = formatTimestamp(entry.endTime);
+            // ✅ FIXED: Use proper start and end times
+            const startTime = entry.startTime ? formatTimestamp(entry.startTime) : '?';
+            const endTime = entry.endTime ? formatTimestamp(entry.endTime) : '?';
             const duration = Math.round(entry.duration / 60000);
+            
+            // Only show duration if it's more than 0
+            const durationDisplay = duration > 0 ? ' (' + duration + 'm)' : '';
             
             html += '<div class="timeline-entry">';
             html += '<span class="site-name">' + entry.site + '</span>';
-            html += '<span class="site-time">' + startTime + ' - ' + endTime + ' (' + duration + 'm)</span>';
+            html += '<span class="site-time">' + startTime + ' - ' + endTime + durationDisplay + '</span>';
             html += '</div>';
         });
         
@@ -292,6 +305,14 @@ function displayTimelineFromLocal(dayData, date) {
     });
     
     container.innerHTML = html;
+}
+
+// Helper for 12-hour time labels
+function getHourLabel(hour) {
+    if (hour === 0) return '12 AM';
+    if (hour === 12) return '12 PM';
+    if (hour < 12) return hour + ' AM';
+    return (hour - 12) + ' PM';
 }
 
 // Update calendar stats from local data
@@ -908,4 +929,4 @@ document.getElementById('summarizeBtn').addEventListener('click', async () => {
 // AUTO REFRESH
 // ============================================================
 setInterval(loadStats, 30000);
-console.log('Mentiis.co popup loaded with calendar support');
+console.log('🧠 Mentiis.co popup loaded successfully');
