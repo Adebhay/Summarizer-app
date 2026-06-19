@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "Mentiis.co - Smart Productivity Tracker",
+  "name": "Mentiis.co - Your AI Productivity Coach",
   "version": "1.0.0",
-   "description": "Your AI-powered daily productivity coach",
+  "description": "Your AI-powered daily productivity coach that tracks your digital habits and delivers personalized insights to help you build better focus and achieve more.",
   "permissions": [
     "storage",
     "tabs",

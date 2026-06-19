@@ -2,10 +2,10 @@
   "manifest_version": 3,
   "name": "Mentiis.co - Smart Productivity Tracker",
   "version": "1.0.0",
-  "description": "AI-powered productivity tracker which tracks and summarizes your daily digital activity",
+  "description": "AI-powered productivity tracker that monitors your digital activity and delivers daily coaching summaries to help you work smarter, not harder.",
   "browser_specific_settings": {
     "gecko": {
-      "id": "mentis@Mentiis.co",
+      "id": "mentiis@mentiis.co",
       "strict_min_version": "109.0"
     }
   },
