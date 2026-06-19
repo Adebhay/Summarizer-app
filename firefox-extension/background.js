@@ -1,4 +1,4 @@
-// browser-extension/background.js - Fixed data saving
+// browser-extension/background.js - Complete Clean Version
 
 const API_URL = 'https://summarizer-app-ybx8.onrender.com/api/activity';
 
@@ -86,7 +86,7 @@ browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 });
 
-// Save activity with timestamp tracking - FIXED
+// Save activity with timestamp tracking
 async function saveActivity(domain, duration) {
     const storage = getStorage();
     if (!storage) {
@@ -112,7 +112,6 @@ async function doSaveActivity(domain, duration) {
     const storage = getStorage();
     if (!storage) return;
     
-    // ✅ FIX: Use local date string to avoid timezone issues
     const now = new Date();
     const today = now.getFullYear() + '-' + 
                   String(now.getMonth() + 1).padStart(2, '0') + '-' + 
@@ -130,7 +129,6 @@ async function doSaveActivity(domain, duration) {
         
         let activityData = (result && result.activityData) || {};
         
-        // Initialize today's data properly
         if (!activityData[today]) {
             activityData[today] = {
                 sites: {},
@@ -139,7 +137,6 @@ async function doSaveActivity(domain, duration) {
             };
         }
         
-        // Make sure all properties exist
         if (!activityData[today].sites) {
             activityData[today].sites = {};
         }
@@ -150,14 +147,12 @@ async function doSaveActivity(domain, duration) {
             activityData[today].totalTime = 0;
         }
         
-        // Store site time (aggregated)
         if (!activityData[today].sites[domain]) {
             activityData[today].sites[domain] = 0;
         }
         activityData[today].sites[domain] += duration;
         activityData[today].totalTime += duration;
         
-        // Store timeline entry with timestamp
         activityData[today].timeline.push({
             site: domain,
             duration: duration,
@@ -166,12 +161,11 @@ async function doSaveActivity(domain, duration) {
             timestamp: timestamp
         });
         
-        // Keep only last 500 timeline entries
         if (activityData[today].timeline.length > 500) {
             activityData[today].timeline = activityData[today].timeline.slice(-500);
         }
         
-        console.log('💾 Saving data for', today, 'Total time:', activityData[today].totalTime, 'Sites:', Object.keys(activityData[today].sites).length);
+        console.log('💾 Saving data for', today, 'Total time:', activityData[today].totalTime);
         
         storage.set({ activityData }, () => {
             if (browser.runtime.lastError) {
@@ -181,7 +175,6 @@ async function doSaveActivity(domain, duration) {
             }
         });
         
-        // Send to backend
         try {
             await fetch(API_URL, {
                 method: 'POST',
@@ -201,51 +194,57 @@ async function doSaveActivity(domain, duration) {
     });
 }
 
-// Break reminder
+// Break reminder - COMPLETE FIXED VERSION
 function checkBreakReminder() {
     const storage = getStorage();
     if (!storage) return;
-    
+
     const now = new Date();
     const today = now.getFullYear() + '-' + 
                   String(now.getMonth() + 1).padStart(2, '0') + '-' + 
                   String(now.getDate()).padStart(2, '0');
-    
+
     storage.get(['lastBreakReminder', 'activityData'], (result) => {
         if (browser.runtime.lastError) {
             console.error('Storage read error:', browser.runtime.lastError);
             return;
         }
-        
+
         const lastReminder = (result && result.lastBreakReminder) || '';
         const activityData = (result && result.activityData) || {};
         const todayData = activityData[today] || {};
         const sites = todayData.sites || {};
         const totalSeconds = Object.values(sites).reduce((a, b) => a + b, 0);
         const totalMinutes = Math.round(totalSeconds / 60);
-        
+
         console.log('Break check:', totalMinutes, 'minutes today');
-        
+
         if (totalMinutes > 60 && lastReminder !== today) {
             console.log('Sending break notification...');
-            try {
-                browser.notifications.create({
-                    type: 'basic',
-                    iconUrl: 'icons/icon-128.png',
-                    title: 'Mentiis.co - Break Reminder',
-                    message: 'You\'ve been browsing for over an hour! Take a 5-minute break.',
-                    priority: 2
-                }, (notificationId) => {
-                    if (browser.runtime.lastError) {
-                        console.error('Notification error:', browser.runtime.lastError);
-                    } else {
-                        console.log('Notification sent:', notificationId);
-                    }
-                });
-                storage.set({ lastBreakReminder: today });
-            } catch (e) {
-                console.error('Notification creation error:', e);
+
+            if (browser.notifications) {
+                try {
+                    browser.notifications.create({
+                        type: 'basic',
+                        iconUrl: 'icons/icon-128.png',
+                        title: '🧠 Mentiis.co - Break Reminder',
+                        message: 'You\'ve been browsing for over an hour! Take a 5-minute break.',
+                        priority: 2
+                    }, (notificationId) => {
+                        if (browser.runtime.lastError) {
+                            console.warn('Notification warning:', browser.runtime.lastError.message);
+                        } else {
+                            console.log('✅ Notification sent:', notificationId);
+                        }
+                    });
+                } catch (e) {
+                    console.warn('Notification creation error:', e.message);
+                }
+            } else {
+                console.log('Notifications API not available');
             }
+
+            storage.set({ lastBreakReminder: today });
         }
     });
 }
@@ -305,4 +304,4 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
 });
 
-console.log('browser/Edge background loaded with calendar support');
+console.log('🧠 Mentiis.co background loaded successfully');
