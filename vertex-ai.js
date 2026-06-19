@@ -62,7 +62,7 @@ async function generateSummary(activityData, userId) {
         const timeGreeting = getTimeBasedGreeting();
         const encouragement = getEncouragement();
         
-        const prompt = `You are a friendly, supportive AI productivity coach for "Mentis.co".
+        const prompt = `You are a friendly, supportive AI productivity coach for "Mentiis.co".
 
 ${timeGreeting}
 

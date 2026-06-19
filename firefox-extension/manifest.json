@@ -1,11 +1,11 @@
 {
   "manifest_version": 3,
-  "name": "Mentis.co - Smart Productivity Tracker",
+  "name": "Mentiis.co - Smart Productivity Tracker",
   "version": "1.0.0",
   "description": "AI-powered productivity tracker which tracks and summarizes your daily digital activity",
   "browser_specific_settings": {
     "gecko": {
-      "id": "mentis@mentis.co",
+      "id": "mentis@Mentiis.co",
       "strict_min_version": "109.0"
     }
   },
@@ -27,6 +27,6 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Mentis.co"
+    "default_title": "Mentiis.co"
   }
 }

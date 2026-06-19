@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Mentis.co - Smart Productivity Tracker",
+  "name": "Mentiis.co - Smart Productivity Tracker",
   "version": "1.0.0",
    "description": "Your AI-powered daily productivity coach",
   "permissions": [
@@ -17,6 +17,6 @@
   },
   "action": {
     "default_popup": "popup.html",
-    "default_title": "Mentis.co"
+    "default_title": "Mentiis.co"
   }
 }

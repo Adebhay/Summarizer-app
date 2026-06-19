@@ -1,10 +1,18 @@
-// chrome-extension/popup.js - Complete with Calendar & Timeline
+// browser-extension/popup.js - Complete Updated Version with Calendar Fix
 
 const SERVER_URL = 'https://summarizer-app-ybx8.onrender.com';
 
 // ============================================================
-// FORMAT TIME
+// HELPER FUNCTIONS
 // ============================================================
+
+// Consistent date key function (avoid timezone issues)
+function getDateKey(date) {
+    return date.getFullYear() + '-' + 
+           String(date.getMonth() + 1).padStart(2, '0') + '-' + 
+           String(date.getDate()).padStart(2, '0');
+}
+
 function formatTime(seconds) {
     const minutes = Math.round(seconds / 60);
     if (minutes < 1) return seconds + 's';
@@ -141,7 +149,8 @@ async function checkServer() {
 // STATS LOADING & DISPLAY
 // ============================================================
 async function loadStats() {
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = getDateKey(now);
     const statsDiv = document.getElementById('stats');
     try {
         browser.storage.local.get(['activityData'], (result) => {
@@ -185,38 +194,13 @@ function displayStats(activity) {
 let currentViewDate = new Date();
 let currentView = 'day';
 
-// Load calendar data for a specific date
-async function loadCalendarData(date) {
-    const dateStr = date.toISOString().split('T')[0];
-    const userIdEl = document.getElementById('userId');
-    const userIdText = userIdEl ? userIdEl.textContent : 'Loading...';
+// Load calendar data from local storage
+function loadCalendarData(date) {
+    const dateStr = getDateKey(date);
     
-    // If userId is still loading, wait and retry
-    if (userIdText === 'Loading...' || userIdText.includes('(local)')) {
-        setTimeout(() => loadCalendarData(date), 500);
-        return;
-    }
+    console.log('📅 Calendar looking for date:', dateStr);
     
-    try {
-        const response = await fetch(SERVER_URL + '/api/timeline/' + userIdText + '/' + dateStr);
-        const data = await response.json();
-        
-        if (data.success) {
-            displayTimeline(data, date);
-            updateCalendarStats(data);
-        } else {
-            document.getElementById('timeline-list').innerHTML = '<div style="text-align:center; color:#5f6368; padding:20px;">No data for this date</div>';
-        }
-    } catch (error) {
-        console.error('Calendar load error:', error);
-        document.getElementById('timeline-list').innerHTML = '<div style="text-align:center; color:#5f6368; padding:20px;">Error loading data</div>';
-    }
-}
-
-// Display timeline
-function displayTimeline(data, date) {
-    const container = document.getElementById('timeline-list');
-    
+    // Update date display
     document.getElementById('current-date-display').textContent = date.toLocaleDateString('en-US', {
         weekday: 'short',
         month: 'short',
@@ -224,14 +208,58 @@ function displayTimeline(data, date) {
         year: 'numeric'
     });
     
-    if (!data.timeline || data.timeline.length === 0) {
+    // Read from local storage
+    browser.storage.local.get(['activityData'], (result) => {
+        const activityData = (result && result.activityData) || {};
+        const dayData = activityData[dateStr];
+        
+        console.log('📊 Data found for', dateStr, ':', dayData ? 'YES' : 'NO');
+        if (dayData) {
+            console.log('📊 Sites:', Object.keys(dayData.sites || {}), 'Total:', dayData.totalTime);
+        }
+        
+        if (dayData && (Object.keys(dayData.sites || {}).length > 0 || (dayData.timeline && dayData.timeline.length > 0))) {
+            displayTimelineFromLocal(dayData, date);
+            updateCalendarStatsFromLocal(dayData);
+        } else {
+            document.getElementById('timeline-list').innerHTML = '<div style="text-align:center; color:#5f6368; padding:20px;">No activity recorded for this date</div>';
+            document.getElementById('cal-total-time').textContent = '0h';
+            document.getElementById('cal-site-count').textContent = '0';
+            document.getElementById('cal-productivity').textContent = '0%';
+        }
+    });
+}
+
+// Display timeline from local data
+function displayTimelineFromLocal(dayData, date) {
+    const container = document.getElementById('timeline-list');
+    
+    const timeline = dayData.timeline || [];
+    const sites = dayData.sites || {};
+    
+    if (timeline.length === 0 && Object.keys(sites).length === 0) {
         container.innerHTML = '<div style="text-align:center; color:#5f6368; padding:20px;">No activity recorded for this date</div>';
+        return;
+    }
+    
+    // If we have sites but no timeline, create a simple view
+    if (timeline.length === 0 && Object.keys(sites).length > 0) {
+        let html = '';
+        const sortedSites = Object.entries(sites).sort((a, b) => b[1] - a[1]);
+        sortedSites.forEach(([site, seconds]) => {
+            const minutes = Math.round(seconds / 60);
+            html += '<div class="timeline-entry">';
+            html += '<span class="site-name">' + site + '</span>';
+            html += '<span class="site-time">' + formatTimeShort(minutes) + '</span>';
+            html += '</div>';
+        });
+        container.innerHTML = html;
         return;
     }
     
     // Group by hour
     const grouped = {};
-    data.timeline.forEach(entry => {
+    timeline.forEach(entry => {
         const hour = new Date(entry.timestamp).getHours();
         if (!grouped[hour]) grouped[hour] = [];
         grouped[hour].push(entry);
@@ -266,180 +294,22 @@ function displayTimeline(data, date) {
     container.innerHTML = html;
 }
 
-// Update calendar stats
-function updateCalendarStats(data) {
-    const totalMinutes = Math.round((data.totalTime || 0) / 60);
-    const siteCount = Object.keys(data.sites || {}).length;
+// Update calendar stats from local data
+function updateCalendarStatsFromLocal(dayData) {
+    const sites = dayData.sites || {};
+    const totalTime = dayData.totalTime || 0;
+    const totalMinutes = Math.round(totalTime / 60);
+    const siteCount = Object.keys(sites).length;
     
     document.getElementById('cal-total-time').textContent = formatTimeShort(totalMinutes);
     document.getElementById('cal-site-count').textContent = siteCount;
     
+    // Simple productivity score (placeholder - can be enhanced with site classification)
     const productivity = siteCount > 0 ? Math.min(100, Math.round((totalMinutes / (siteCount * 15)) * 10)) : 0;
     document.getElementById('cal-productivity').textContent = Math.min(100, productivity) + '%';
 }
 
-// Load week data
-async function loadWeekData() {
-    const startDate = new Date(currentViewDate);
-    startDate.setDate(startDate.getDate() - startDate.getDay());
-    const endDate = new Date(startDate);
-    endDate.setDate(endDate.getDate() + 6);
-    
-    const userIdEl = document.getElementById('userId');
-    const userIdText = userIdEl ? userIdEl.textContent : 'Loading...';
-    
-    if (userIdText === 'Loading...' || userIdText.includes('(local)')) {
-        setTimeout(loadWeekData, 500);
-        return;
-    }
-    
-    const startStr = startDate.toISOString().split('T')[0];
-    const endStr = endDate.toISOString().split('T')[0];
-    
-    try {
-        const response = await fetch(SERVER_URL + '/api/timeline/' + userIdText + '/' + startStr + '/' + endStr);
-        const data = await response.json();
-        
-        if (data.success) {
-            displayWeekView(data.data, startDate, endDate);
-        }
-    } catch (error) {
-        console.error('Week load error:', error);
-    }
-}
-
-// Display week view
-function displayWeekView(data, startDate, endDate) {
-    const container = document.getElementById('timeline-list');
-    
-    document.getElementById('current-date-display').textContent = 
-        startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + 
-        ' - ' + 
-        endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    
-    let html = '<div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:10px;">';
-    
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    dayNames.forEach(name => {
-        html += '<div style="text-align:center; font-size:10px; color:#5f6368; font-weight:600;">' + name + '</div>';
-    });
-    
-    const dataMap = {};
-    data.forEach(item => {
-        dataMap[item.date] = item;
-    });
-    
-    let currentDate = new Date(startDate);
-    while (currentDate <= endDate) {
-        const dateStr = currentDate.toISOString().split('T')[0];
-        const dayData = dataMap[dateStr];
-        const dayMinutes = dayData ? Math.round((dayData.totalTime || 0) / 60) : 0;
-        
-        let colorClass = 'low';
-        if (dayMinutes > 120) colorClass = 'high';
-        else if (dayMinutes > 60) colorClass = 'medium';
-        
-        const isToday = dateStr === new Date().toISOString().split('T')[0];
-        const todayClass = isToday ? 'today' : '';
-        
-        html += '<div class="heatmap-day ' + colorClass + ' ' + todayClass + '" onclick="loadCalendarData(new Date(\'' + dateStr + '\'))">';
-        html += '<div class="day-number">' + currentDate.getDate() + '</div>';
-        html += '<div class="day-label">' + (dayMinutes > 0 ? formatTimeShort(dayMinutes) : '-') + '</div>';
-        html += '</div>';
-        
-        currentDate.setDate(currentDate.getDate() + 1);
-    }
-    
-    html += '</div>';
-    html += '<div style="text-align:center; font-size:10px; color:#5f6368;">Click a date to view details</div>';
-    
-    container.innerHTML = html;
-}
-
-// Load month data
-async function loadMonthData() {
-    const startDate = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth(), 1);
-    const endDate = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth() + 1, 0);
-    
-    const userIdEl = document.getElementById('userId');
-    const userIdText = userIdEl ? userIdEl.textContent : 'Loading...';
-    
-    if (userIdText === 'Loading...' || userIdText.includes('(local)')) {
-        setTimeout(loadMonthData, 500);
-        return;
-    }
-    
-    const startStr = startDate.toISOString().split('T')[0];
-    const endStr = endDate.toISOString().split('T')[0];
-    
-    try {
-        const response = await fetch(SERVER_URL + '/api/timeline/' + userIdText + '/' + startStr + '/' + endStr);
-        const data = await response.json();
-        
-        if (data.success) {
-            displayMonthView(data.data, startDate, endDate);
-        }
-    } catch (error) {
-        console.error('Month load error:', error);
-    }
-}
-
-// Display month view
-function displayMonthView(data, startDate, endDate) {
-    const container = document.getElementById('timeline-list');
-    
-    document.getElementById('current-date-display').textContent = 
-        startDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-    
-    const dataMap = {};
-    data.forEach(item => {
-        dataMap[item.date] = item;
-    });
-    
-    let html = '<div style="display:grid; grid-template-columns:repeat(7,1fr); gap:3px;">';
-    
-    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    dayNames.forEach(name => {
-        html += '<div style="text-align:center; font-size:9px; color:#5f6368; font-weight:600; padding:2px;">' + name + '</div>';
-    });
-    
-    const firstDay = startDate.getDay();
-    for (let i = 0; i < firstDay; i++) {
-        html += '<div></div>';
-    }
-    
-    let currentDate = new Date(startDate);
-    while (currentDate <= endDate) {
-        const dateStr = currentDate.toISOString().split('T')[0];
-        const dayData = dataMap[dateStr];
-        const dayMinutes = dayData ? Math.round((dayData.totalTime || 0) / 60) : 0;
-        
-        let colorClass = 'low';
-        if (dayMinutes > 120) colorClass = 'high';
-        else if (dayMinutes > 60) colorClass = 'medium';
-        
-        const isToday = dateStr === new Date().toISOString().split('T')[0];
-        const todayClass = isToday ? 'today' : '';
-        
-        html += '<div class="heatmap-day ' + colorClass + ' ' + todayClass + '" onclick="loadCalendarData(new Date(\'' + dateStr + '\'))">';
-        html += '<div class="day-number">' + currentDate.getDate() + '</div>';
-        html += '</div>';
-        
-        currentDate.setDate(currentDate.getDate() + 1);
-    }
-    
-    html += '</div>';
-    html += '<div style="margin-top:8px; text-align:center; font-size:9px; color:#5f6368;">Click a date to view details</div>';
-    html += '<div style="display:flex; justify-content:center; gap:8px; margin-top:6px; font-size:8px; color:#5f6368;">';
-    html += '<span>● <span style="color:#8ab4f8;">High (>2h)</span></span>';
-    html += '<span>● <span style="color:#d2e3fc;">Medium (>1h)</span></span>';
-    html += '<span>● <span style="color:#e8eaed;">Low (<1h)</span></span>';
-    html += '</div>';
-    
-    container.innerHTML = html;
-}
-
-// Calendar navigation
+// Navigation
 document.getElementById('prev-day').addEventListener('click', function() {
     if (currentView === 'day') {
         currentViewDate.setDate(currentViewDate.getDate() - 1);
@@ -493,13 +363,165 @@ document.getElementById('toggle-calendar').addEventListener('click', function() 
     const panel = document.getElementById('calendar-panel');
     if (panel.style.display === 'none' || panel.style.display === '') {
         panel.style.display = 'block';
-        // Reset to today and load
         currentViewDate = new Date();
         loadCalendarData(currentViewDate);
     } else {
         panel.style.display = 'none';
     }
 });
+
+// Week view
+function loadWeekData() {
+    const startDate = new Date(currentViewDate);
+    startDate.setDate(startDate.getDate() - startDate.getDay());
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + 6);
+    
+    document.getElementById('current-date-display').textContent = 
+        startDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + 
+        ' - ' + 
+        endDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+    
+    browser.storage.local.get(['activityData'], (result) => {
+        const activityData = (result && result.activityData) || {};
+        const weekData = [];
+        
+        let currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+            const dateStr = getDateKey(currentDate);
+            if (activityData[dateStr]) {
+                weekData.push({
+                    date: dateStr,
+                    ...activityData[dateStr]
+                });
+            }
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+        
+        displayWeekView(weekData, startDate, endDate);
+    });
+}
+
+function displayWeekView(data, startDate, endDate) {
+    const container = document.getElementById('timeline-list');
+    
+    let html = '<div style="display:grid; grid-template-columns:repeat(7,1fr); gap:4px; margin-bottom:10px;">';
+    
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    dayNames.forEach(name => {
+        html += '<div style="text-align:center; font-size:10px; color:#5f6368; font-weight:600;">' + name + '</div>';
+    });
+    
+    const dataMap = {};
+    data.forEach(item => {
+        dataMap[item.date] = item;
+    });
+    
+    let currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+        const dateStr = getDateKey(currentDate);
+        const dayData = dataMap[dateStr];
+        const dayMinutes = dayData ? Math.round((dayData.totalTime || 0) / 60) : 0;
+        
+        let colorClass = 'low';
+        if (dayMinutes > 120) colorClass = 'high';
+        else if (dayMinutes > 60) colorClass = 'medium';
+        
+        const isToday = dateStr === getDateKey(new Date());
+        const todayClass = isToday ? 'today' : '';
+        
+        html += '<div class="heatmap-day ' + colorClass + ' ' + todayClass + '" onclick="loadCalendarData(new Date(\'' + dateStr + '\'))">';
+        html += '<div class="day-number">' + currentDate.getDate() + '</div>';
+        html += '<div class="day-label">' + (dayMinutes > 0 ? formatTimeShort(dayMinutes) : '-') + '</div>';
+        html += '</div>';
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    html += '</div>';
+    html += '<div style="text-align:center; font-size:10px; color:#5f6368;">Click a date to view details</div>';
+    
+    container.innerHTML = html;
+}
+
+// Month view
+function loadMonthData() {
+    const startDate = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth(), 1);
+    const endDate = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth() + 1, 0);
+    
+    document.getElementById('current-date-display').textContent = 
+        startDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    
+    browser.storage.local.get(['activityData'], (result) => {
+        const activityData = (result && result.activityData) || {};
+        const monthData = [];
+        
+        let currentDate = new Date(startDate);
+        while (currentDate <= endDate) {
+            const dateStr = getDateKey(currentDate);
+            if (activityData[dateStr]) {
+                monthData.push({
+                    date: dateStr,
+                    ...activityData[dateStr]
+                });
+            }
+            currentDate.setDate(currentDate.getDate() + 1);
+        }
+        
+        displayMonthView(monthData, startDate, endDate);
+    });
+}
+
+function displayMonthView(data, startDate, endDate) {
+    const container = document.getElementById('timeline-list');
+    
+    const dataMap = {};
+    data.forEach(item => {
+        dataMap[item.date] = item;
+    });
+    
+    let html = '<div style="display:grid; grid-template-columns:repeat(7,1fr); gap:3px;">';
+    
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    dayNames.forEach(name => {
+        html += '<div style="text-align:center; font-size:9px; color:#5f6368; font-weight:600; padding:2px;">' + name + '</div>';
+    });
+    
+    const firstDay = startDate.getDay();
+    for (let i = 0; i < firstDay; i++) {
+        html += '<div></div>';
+    }
+    
+    let currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+        const dateStr = getDateKey(currentDate);
+        const dayData = dataMap[dateStr];
+        const dayMinutes = dayData ? Math.round((dayData.totalTime || 0) / 60) : 0;
+        
+        let colorClass = 'low';
+        if (dayMinutes > 120) colorClass = 'high';
+        else if (dayMinutes > 60) colorClass = 'medium';
+        
+        const isToday = dateStr === getDateKey(new Date());
+        const todayClass = isToday ? 'today' : '';
+        
+        html += '<div class="heatmap-day ' + colorClass + ' ' + todayClass + '" onclick="loadCalendarData(new Date(\'' + dateStr + '\'))">';
+        html += '<div class="day-number">' + currentDate.getDate() + '</div>';
+        html += '</div>';
+        
+        currentDate.setDate(currentDate.getDate() + 1);
+    }
+    
+    html += '</div>';
+    html += '<div style="margin-top:8px; text-align:center; font-size:9px; color:#5f6368;">Click a date to view details</div>';
+    html += '<div style="display:flex; justify-content:center; gap:8px; margin-top:6px; font-size:8px; color:#5f6368;">';
+    html += '<span>● <span style="color:#8ab4f8;">High (>2h)</span></span>';
+    html += '<span>● <span style="color:#d2e3fc;">Medium (>1h)</span></span>';
+    html += '<span>● <span style="color:#e8eaed;">Low (<1h)</span></span>';
+    html += '</div>';
+    
+    container.innerHTML = html;
+}
 
 // ============================================================
 // VOICE POPULATION
@@ -637,7 +659,7 @@ if (testVoiceBtn) {
         voiceSettings.googleApiKey = apiKeyInput ? apiKeyInput.value.trim() : '';
         voiceSettings.googleVoice = googleVoiceSelect ? googleVoiceSelect.value : 'en-US-Wavenet-D';
         
-        speakSummary('Hello! This is your personalized Mentis.co voice.');
+        speakSummary('Hello! This is your personalized Mentiis.co voice.');
     });
 }
 
@@ -828,7 +850,7 @@ async function speakWithGoogleTTS(text, settings) {
 document.getElementById('summarizeBtn').addEventListener('click', async () => {
     const button = document.getElementById('summarizeBtn');
     const summaryDiv = document.getElementById('summary');
-    const today = new Date().toISOString().split('T')[0];
+    const today = getDateKey(new Date());
     
     button.disabled = true;
     button.textContent = 'Generating...';
@@ -849,7 +871,7 @@ document.getElementById('summarizeBtn').addEventListener('click', async () => {
             document.getElementById('userId').textContent = userId;
         }
         
-        console.log('Generating summary for userId:', userId);
+        console.log('Generating summary for userId:', userId, 'date:', today);
         
         const response = await fetch(SERVER_URL + '/api/summarize', {
             method: 'POST',
@@ -886,4 +908,4 @@ document.getElementById('summarizeBtn').addEventListener('click', async () => {
 // AUTO REFRESH
 // ============================================================
 setInterval(loadStats, 30000);
-console.log('Mentis.co popup loaded with calendar support');
+console.log('Mentiis.co popup loaded with calendar support');

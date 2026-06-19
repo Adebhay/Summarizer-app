@@ -1,4 +1,4 @@
-// chrome-extension/background.js - Fixed
+// chrome-extension/background.js - Fixed data saving
 
 const API_URL = 'https://summarizer-app-ybx8.onrender.com/api/activity';
 
@@ -112,9 +112,15 @@ async function doSaveActivity(domain, duration) {
     const storage = getStorage();
     if (!storage) return;
     
-    const today = new Date().toISOString().split('T')[0];
-    const now = new Date().toISOString();
-    const startTime = new Date(Date.now() - duration).toISOString();
+    // ✅ FIX: Use local date string to avoid timezone issues
+    const now = new Date();
+    const today = now.getFullYear() + '-' + 
+                  String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                  String(now.getDate()).padStart(2, '0');
+    const timestamp = now.toISOString();
+    const startTime = new Date(now.getTime() - duration).toISOString();
+    
+    console.log('📝 Saving activity for date:', today, 'domain:', domain, 'duration:', duration);
     
     storage.get(['activityData'], async (result) => {
         if (chrome.runtime.lastError) {
@@ -124,7 +130,7 @@ async function doSaveActivity(domain, duration) {
         
         let activityData = (result && result.activityData) || {};
         
-        // ✅ FIX: Initialize today's data properly if it doesn't exist
+        // Initialize today's data properly
         if (!activityData[today]) {
             activityData[today] = {
                 sites: {},
@@ -133,7 +139,7 @@ async function doSaveActivity(domain, duration) {
             };
         }
         
-        // ✅ FIX: Make sure sites object exists
+        // Make sure all properties exist
         if (!activityData[today].sites) {
             activityData[today].sites = {};
         }
@@ -156,22 +162,26 @@ async function doSaveActivity(domain, duration) {
             site: domain,
             duration: duration,
             startTime: startTime,
-            endTime: now,
-            timestamp: now
+            endTime: timestamp,
+            timestamp: timestamp
         });
         
-        // Keep only last 500 timeline entries to avoid storage limits
+        // Keep only last 500 timeline entries
         if (activityData[today].timeline.length > 500) {
             activityData[today].timeline = activityData[today].timeline.slice(-500);
         }
         
+        console.log('💾 Saving data for', today, 'Total time:', activityData[today].totalTime, 'Sites:', Object.keys(activityData[today].sites).length);
+        
         storage.set({ activityData }, () => {
             if (chrome.runtime.lastError) {
                 console.error('Storage write error:', chrome.runtime.lastError);
+            } else {
+                console.log('✅ Data saved successfully for', today);
             }
         });
         
-        // Send to backend with timestamp data
+        // Send to backend
         try {
             await fetch(API_URL, {
                 method: 'POST',
@@ -184,9 +194,9 @@ async function doSaveActivity(domain, duration) {
                     totalTime: activityData[today].totalTime
                 })
             });
-            console.log('Data sent to backend with timeline');
+            console.log('📤 Data sent to backend for', today);
         } catch (error) {
-            console.log('Backend not reachable, data saved locally');
+            console.log('⚠️ Backend not reachable, data saved locally');
         }
     });
 }
@@ -196,7 +206,11 @@ function checkBreakReminder() {
     const storage = getStorage();
     if (!storage) return;
     
-    const today = new Date().toISOString().split('T')[0];
+    const now = new Date();
+    const today = now.getFullYear() + '-' + 
+                  String(now.getMonth() + 1).padStart(2, '0') + '-' + 
+                  String(now.getDate()).padStart(2, '0');
+    
     storage.get(['lastBreakReminder', 'activityData'], (result) => {
         if (chrome.runtime.lastError) {
             console.error('Storage read error:', chrome.runtime.lastError);
@@ -210,7 +224,7 @@ function checkBreakReminder() {
         const totalSeconds = Object.values(sites).reduce((a, b) => a + b, 0);
         const totalMinutes = Math.round(totalSeconds / 60);
         
-        console.log('Break check: ' + totalMinutes + ' minutes today');
+        console.log('Break check:', totalMinutes, 'minutes today');
         
         if (totalMinutes > 60 && lastReminder !== today) {
             console.log('Sending break notification...');
@@ -218,7 +232,7 @@ function checkBreakReminder() {
                 chrome.notifications.create({
                     type: 'basic',
                     iconUrl: 'icons/icon-128.png',
-                    title: 'Mentis.co - Break Reminder',
+                    title: 'Mentiis.co - Break Reminder',
                     message: 'You\'ve been browsing for over an hour! Take a 5-minute break.',
                     priority: 2
                 }, (notificationId) => {

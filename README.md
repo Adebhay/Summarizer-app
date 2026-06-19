@@ -1,6 +1,6 @@
-# 🧠 Mentis.co - AI Productivity Coach
+# 🧠 Mentiis.co - AI Productivity Coach
 
-**Mentis.co** is a cross-browser extension that tracks your daily browsing activity and provides AI-powered productivity insights and coaching.
+**Mentiis.co** is a cross-browser extension that tracks your daily browsing activity and provides AI-powered productivity insights and coaching.
 
 ## ✨ Features
 
@@ -34,7 +34,7 @@ Download the extension from the [Releases](https://github.com/Adebhay/Summarizer
 ## 🧪 How to Test
 
 1. Browse websites for 5-10 minutes
-2. Click the Mentis.co icon in your toolbar
+2. Click the Mentiis.co icon in your toolbar
 3. Click "Get AI Summary"
 4. Get your personalized coaching summary!
 
