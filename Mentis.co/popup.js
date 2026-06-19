@@ -239,9 +239,24 @@ document.getElementById('volume-slider').addEventListener('input', function() {
     voiceSettings.volume = parseFloat(this.value);
 });
 
-// Test voice button
+// Test voice button - FIXED
 document.getElementById('test-voice-btn').addEventListener('click', function() {
-    speakSummary('Hello! This is your personalized Mentis.co voice. Adjust the settings to your liking.');
+    // Get latest settings from UI
+    const testSettings = {
+        language: document.getElementById('voice-language').value,
+        voiceName: document.getElementById('voice-select').value,
+        rate: parseFloat(document.getElementById('rate-slider').value),
+        pitch: parseFloat(document.getElementById('pitch-slider').value),
+        volume: parseFloat(document.getElementById('volume-slider').value),
+        useGoogleTTS: document.getElementById('use-google-tts').checked,
+        googleApiKey: document.getElementById('google-api-key').value.trim(),
+        googleVoice: document.getElementById('google-voice-select').value
+    };
+    
+    // Update global voiceSettings
+    voiceSettings = testSettings;
+    
+    speakSummary('Hello! This is your personalized Mentis.co voice. Adjust the settings to your best interest.');
 });
 
 // Save voice settings
@@ -308,7 +323,7 @@ function speakSummary(text) {
     });
 }
 
-// Browser TTS (free, multiple voices)
+// Browser TTS (free, multiple voices) - FIXED
 function speakWithBrowserTTS(text, settings) {
     const utterance = new SpeechSynthesisUtterance(text);
     
@@ -317,15 +332,26 @@ function speakWithBrowserTTS(text, settings) {
     utterance.volume = parseFloat(settings.volume) || 1.0;
     utterance.lang = settings.language || 'en-US';
     
+    // Get all available voices
     const voices = speechSynthesis.getVoices();
     const voiceName = settings.voiceName || '';
-    const selectedVoice = voices.find(v => v.name === voiceName);
+    
+    // Find the selected voice by name
+    let selectedVoice = voices.find(v => v.name === voiceName);
+    
+    // If not found, try to find by language
+    if (!selectedVoice) {
+        selectedVoice = voices.find(v => v.lang === utterance.lang);
+    }
+    
+    // If still not found, use the first available voice
+    if (!selectedVoice && voices.length > 0) {
+        selectedVoice = voices[0];
+    }
     
     if (selectedVoice) {
         utterance.voice = selectedVoice;
-    } else {
-        const fallbackVoice = voices.find(v => v.lang === utterance.lang);
-        if (fallbackVoice) utterance.voice = fallbackVoice;
+        console.log('Using voice:', selectedVoice.name, selectedVoice.lang);
     }
     
     const speakBtn = document.querySelector('.speak-btn');
@@ -336,6 +362,7 @@ function speakWithBrowserTTS(text, settings) {
     };
     utterance.onerror = function() {
         if (speakBtn) speakBtn.textContent = '🔊 Listen to Summary';
+        console.warn('Speech error, falling back to default voice');
     };
     
     speechSynthesis.cancel();
@@ -400,8 +427,7 @@ async function speakWithGoogleTTS(text, settings) {
 }
 
 // ============================================================
-// SUMMARY BUTTON
-// ============================================================
+// Summary button - FIXED
 document.getElementById('summarizeBtn').addEventListener('click', async () => {
     const button = document.getElementById('summarizeBtn');
     const summaryDiv = document.getElementById('summary');
@@ -413,12 +439,32 @@ document.getElementById('summarizeBtn').addEventListener('click', async () => {
     summaryDiv.textContent = 'Analyzing your day...';
     
     try {
+        // Ensure we have a valid userId
+        if (!userId || userId === 'Loading...') {
+            // Try to get userId from storage
+            const result = await new Promise((resolve) => {
+                chrome.storage.local.get(['userId'], resolve);
+            });
+            if (result && result.userId) {
+                userId = result.userId;
+            } else {
+                userId = 'user_' + Math.random().toString(36).substring(7);
+                chrome.storage.local.set({ userId: userId });
+            }
+            document.getElementById('userId').textContent = userId;
+        }
+        
+        console.log('Generating summary for userId:', userId);
+        
         const response = await fetch(SERVER_URL + '/api/summarize', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ userId: userId, date: today })
         });
+        
         const data = await response.json();
+        console.log('Summary response:', data);
+        
         if (data.success) {
             summaryDiv.className = 'summary show success';
             summaryDiv.textContent = data.summary;
@@ -432,6 +478,7 @@ document.getElementById('summarizeBtn').addEventListener('click', async () => {
             summaryDiv.textContent = data.message || 'Not enough data yet. Browse more!';
         }
     } catch (error) {
+        console.error('Summary error:', error);
         summaryDiv.className = 'summary show error';
         summaryDiv.textContent = 'Error: Make sure backend is running';
     } finally {

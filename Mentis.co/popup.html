@@ -253,6 +253,40 @@
     <button id="save-voice-btn" style="margin-top:8px; background:#1a73e8; color:white; border:none; padding:6px 12px; border-radius:6px; cursor:pointer;">💾 Save Voice Settings</button>
 </div>
 
+<!-- ===== BREAK SETTINGS ===== -->
+<button id="toggle-break-settings" style="background:transparent; color:#1a73e8; border:none; cursor:pointer; font-size:12px; text-decoration:underline; margin-top:8px;">
+    ⏰ Break Settings
+</button>
+<div id="break-settings" style="display:none; margin-top:8px; padding:12px; background:white; border-radius:10px; box-shadow:0 1px 3px rgba(0,0,0,0.1);">
+    <h4 style="margin:0 0 8px 0; color:#1a73e8; font-size:13px;">Break Alarms</h4>
+    
+    <label style="font-size:12px; color:#5f6368;">Break Interval:</label>
+    <select id="break-interval" style="width:100%; padding:6px; margin:4px 0 10px 0; border:1px solid #dadce0; border-radius:6px;">
+        <option value="15">15 minutes</option>
+        <option value="30" selected>30 minutes</option>
+        <option value="45">45 minutes</option>
+        <option value="60">60 minutes</option>
+        <option value="90">90 minutes</option>
+    </select>
+    
+    <label style="font-size:12px; color:#5f6368;">Snooze Duration:</label>
+    <select id="snooze-duration" style="width:100%; padding:6px; margin:4px 0 10px 0; border:1px solid #dadce0; border-radius:6px;">
+        <option value="3">3 minutes</option>
+        <option value="5" selected>5 minutes</option>
+        <option value="10">10 minutes</option>
+    </select>
+    
+    <label style="font-size:12px; color:#5f6368;">Strict Mode:</label>
+    <div style="display:flex; align-items:center; gap:10px; margin:4px 0 10px 0;">
+        <input type="checkbox" id="strict-mode" style="width:18px; height:18px;">
+        <span style="font-size:12px; color:#5f6368;">Enforce breaks (cannot skip, max 3 snoozes)</span>
+    </div>
+    
+    <button id="save-break-settings" style="background:#1a73e8; color:white; border:none; padding:8px; border-radius:6px; cursor:pointer; width:100%; font-weight:600;">
+        💾 Save Break Settings
+    </button>
+</div>
+
     <script src="popup.js"></script>
 </body>
 </html>
