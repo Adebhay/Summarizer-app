@@ -1,4 +1,4 @@
-// chrome-extension/background.js - Updated with timestamp tracking
+// chrome-extension/background.js - Fixed
 
 const API_URL = 'https://summarizer-app-ybx8.onrender.com/api/activity';
 
@@ -86,7 +86,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 });
 
-// Save activity with timestamp tracking
+// Save activity with timestamp tracking - FIXED
 async function saveActivity(domain, duration) {
     const storage = getStorage();
     if (!storage) {
@@ -124,12 +124,24 @@ async function doSaveActivity(domain, duration) {
         
         let activityData = (result && result.activityData) || {};
         
+        // ✅ FIX: Initialize today's data properly if it doesn't exist
         if (!activityData[today]) {
             activityData[today] = {
                 sites: {},
                 timeline: [],
                 totalTime: 0
             };
+        }
+        
+        // ✅ FIX: Make sure sites object exists
+        if (!activityData[today].sites) {
+            activityData[today].sites = {};
+        }
+        if (!activityData[today].timeline) {
+            activityData[today].timeline = [];
+        }
+        if (typeof activityData[today].totalTime !== 'number') {
+            activityData[today].totalTime = 0;
         }
         
         // Store site time (aggregated)
@@ -194,7 +206,8 @@ function checkBreakReminder() {
         const lastReminder = (result && result.lastBreakReminder) || '';
         const activityData = (result && result.activityData) || {};
         const todayData = activityData[today] || {};
-        const totalSeconds = Object.values(todayData.sites || {}).reduce((a, b) => a + b, 0);
+        const sites = todayData.sites || {};
+        const totalSeconds = Object.values(sites).reduce((a, b) => a + b, 0);
         const totalMinutes = Math.round(totalSeconds / 60);
         
         console.log('Break check: ' + totalMinutes + ' minutes today');
