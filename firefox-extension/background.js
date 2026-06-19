@@ -1,4 +1,4 @@
-// firefox-extension/background.js - Complete Corrected Version
+// chrome-extension/background.js - Fixed for Chrome & Edge
 
 const API_URL = 'https://summarizer-app-ybx8.onrender.com/api/activity';
 
@@ -6,67 +6,101 @@ let currentTab = null;
 let currentStartTime = null;
 let userId = null;
 
-// Get user ID
-browser.storage.local.get(['userId']).then((result) => {
-    if (result.userId) {
-        userId = result.userId;
-    } else {
-        userId = 'user_' + Math.random().toString(36).substring(7);
-        browser.storage.local.set({ userId: userId });
-    }
-    console.log('Firefox User ID:', userId);
-});
+// Get user ID with proper error handling
+function initializeUserId() {
+    browser.storage.local.get(['userId'], (result) => {
+        console.log('Storage result:', result);
+        
+        // Check if result exists and has userId
+        if (result && result.userId) {
+            userId = result.userId;
+            console.log('Existing User ID:', userId);
+        } else {
+            userId = 'user_' + Math.random().toString(36).substring(7);
+            browser.storage.local.set({ userId: userId }, () => {
+                console.log('New User ID created:', userId);
+            });
+        }
+    });
+}
+
+// Call initialization
+initializeUserId();
 
 // Make userId available to popup
 browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'getUserId') {
-        browser.storage.local.get(['userId']).then((result) => {
-            sendResponse({ userId: result.userId });
+        browser.storage.local.get(['userId'], (result) => {
+            if (result && result.userId) {
+                sendResponse({ userId: result.userId });
+            } else {
+                const newUserId = 'user_' + Math.random().toString(36).substring(7);
+                browser.storage.local.set({ userId: newUserId }, () => {
+                    sendResponse({ userId: newUserId });
+                });
+            }
         });
-        return true;
+        return true; // Keep message channel open for async response
     }
 });
 
 // Save activity
 async function saveActivity(domain, duration) {
-    const today = new Date().toISOString().split('T')[0];
-    const result = await browser.storage.local.get(['activityData']);
-    let activityData = result.activityData || {};
-    if (!activityData[today]) {
-        activityData[today] = {};
-    }
-    if (!activityData[today][domain]) {
-        activityData[today][domain] = 0;
-    }
-    activityData[today][domain] += duration;
-    await browser.storage.local.set({ activityData });
-    try {
-        await fetch(API_URL, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                userId: userId,
-                date: today,
-                activityData: activityData[today]
-            })
+    // Ensure userId exists
+    if (!userId) {
+        const result = await new Promise((resolve) => {
+            browser.storage.local.get(['userId'], resolve);
         });
-        console.log('Data sent to backend');
-    } catch (error) {
-        console.log('Backend not reachable, data saved locally');
+        if (result && result.userId) {
+            userId = result.userId;
+        } else {
+            userId = 'user_' + Math.random().toString(36).substring(7);
+            browser.storage.local.set({ userId: userId });
+        }
     }
+    await doSaveActivity(domain, duration);
+}
+
+async function doSaveActivity(domain, duration) {
+    const today = new Date().toISOString().split('T')[0];
+    browser.storage.local.get(['activityData'], async (result) => {
+        let activityData = (result && result.activityData) || {};
+        if (!activityData[today]) {
+            activityData[today] = {};
+        }
+        if (!activityData[today][domain]) {
+            activityData[today][domain] = 0;
+        }
+        activityData[today][domain] += duration;
+        browser.storage.local.set({ activityData });
+        try {
+            await fetch(API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    userId: userId,
+                    date: today,
+                    activityData: activityData[today]
+                })
+            });
+            console.log('Data sent to backend');
+        } catch (error) {
+            console.log('Backend not reachable, data saved locally');
+        }
+    });
 }
 
 // Break reminder
 function checkBreakReminder() {
     const today = new Date().toISOString().split('T')[0];
-    browser.storage.local.get(['lastBreakReminder', 'activityData']).then((result) => {
-        const lastReminder = result.lastBreakReminder || '';
-        const activityData = result.activityData || {};
+    browser.storage.local.get(['lastBreakReminder', 'activityData'], (result) => {
+        const lastReminder = (result && result.lastBreakReminder) || '';
+        const activityData = (result && result.activityData) || {};
         const todayData = activityData[today] || {};
         const totalSeconds = Object.values(todayData).reduce((a, b) => a + b, 0);
         const totalMinutes = Math.round(totalSeconds / 60);
         
-        console.log('Break check: ' + totalMinutes + ' minutes today, last reminder: ' + lastReminder);
+        console.log('Break check: ' + totalMinutes + ' minutes today');
         
         if (totalMinutes > 60 && lastReminder !== today) {
             console.log('Sending break notification...');
@@ -74,11 +108,14 @@ function checkBreakReminder() {
                 type: 'basic',
                 iconUrl: 'icons/icon-128.png',
                 title: 'Mentis.co - Break Reminder',
-                message: 'You have been browsing for over an hour! Take a 5-minute break to rest your eyes and hydrate.'
-            }).then((notificationId) => {
-                console.log('Notification sent:', notificationId);
-            }).catch((error) => {
-                console.error('Notification error:', error);
+                message: 'You\'ve been browsing for over an hour! Take a 5-minute break.',
+                priority: 2
+            }, (notificationId) => {
+                if (browser.runtime.lastError) {
+                    console.error('Notification error:', browser.runtime.lastError);
+                } else {
+                    console.log('Notification sent:', notificationId);
+                }
             });
             browser.storage.local.set({ lastBreakReminder: today });
         }
@@ -132,4 +169,184 @@ browser.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     }
 });
 
-console.log('Firefox background loaded successfully');
+// ============================================================
+// BREAK SETTINGS WITH STRICT MODE
+// ============================================================
+
+let breakSettings = {
+    intervalMinutes: 30,
+    snoozeMinutes: 5,
+    strictMode: false,
+    maxSnooze: 3
+};
+
+// Load break settings from storage
+function loadBreakSettings() {
+    browser.storage.local.get(['breakSettings'], (result) => {
+        if (result.breakSettings) {
+            breakSettings = result.breakSettings;
+            if (breakSettings.strictMode) {
+                breakSettings.maxSnooze = 3;
+            }
+        }
+        updateBreakAlarm();
+    });
+}
+
+// Update break alarm with new interval
+function updateBreakAlarm() {
+    browser.alarms.clear('breakReminder', () => {
+        browser.alarms.create('breakReminder', {
+            periodInMinutes: breakSettings.intervalMinutes
+        });
+        console.log('⏰ Break alarm set to every ' + breakSettings.intervalMinutes + ' minutes');
+    });
+}
+
+// Listen for break settings updates from popup
+browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
+    if (request.type === 'updateBreakSettings') {
+        breakSettings = request.settings;
+        if (breakSettings.strictMode) {
+            breakSettings.maxSnooze = 3;
+        }
+        browser.storage.local.set({ breakSettings: breakSettings });
+        updateBreakAlarm();
+        sendResponse({ success: true });
+        return true;
+    }
+});
+
+// Modified break reminder with strict mode
+function checkBreakReminder() {
+    const today = new Date().toISOString().split('T')[0];
+    browser.storage.local.get(['lastBreakReminder', 'snoozeCount', 'activityData'], (result) => {
+        const lastReminder = result.lastBreakReminder || '';
+        const snoozeCount = result.snoozeCount || 0;
+        const activityData = result.activityData || {};
+        const todayData = activityData[today] || {};
+        const totalSeconds = Object.values(todayData).reduce((a, b) => a + b, 0);
+        const totalMinutes = Math.round(totalSeconds / 60);
+        
+        let minutesSinceLastBreak = 999;
+        if (lastReminder) {
+            browser.storage.local.get(['lastBreakTimestamp'], (timeResult) => {
+                const lastBreakTimestamp = timeResult.lastBreakTimestamp || 0;
+                minutesSinceLastBreak = Math.floor((Date.now() - lastBreakTimestamp) / 60000);
+                processBreakCheck(minutesSinceLastBreak, totalMinutes, snoozeCount, today, lastReminder);
+            });
+        } else {
+            processBreakCheck(999, totalMinutes, snoozeCount, today, lastReminder);
+        }
+    });
+}
+
+function processBreakCheck(minutesSinceLastBreak, totalMinutes, snoozeCount, today, lastReminder) {
+    let shouldRemind = false;
+    if (minutesSinceLastBreak >= breakSettings.intervalMinutes && lastReminder !== today) {
+        shouldRemind = true;
+    } else if (totalMinutes > 60 && lastReminder !== today) {
+        shouldRemind = true;
+    }
+    
+    if (shouldRemind) {
+        console.log('🔔 Break reminder triggered');
+        if (breakSettings.strictMode) {
+            showStrictBreakNotification(snoozeCount);
+        } else {
+            showFlexibleBreakNotification();
+        }
+        browser.storage.local.set({ 
+            lastBreakReminder: today,
+            lastBreakTimestamp: Date.now()
+        });
+        browser.storage.local.set({ snoozeCount: 0 });
+    }
+}
+
+// Strict break notification
+function showStrictBreakNotification(snoozeCount) {
+    const maxSnooze = breakSettings.maxSnooze || 3;
+    const remainingSnoozes = maxSnooze - snoozeCount;
+    
+    let message = '⛔ Break time! ';
+    if (snoozeCount < maxSnooze) {
+        message += `You have ${remainingSnoozes} snooze${remainingSnoozes > 1 ? 's' : ''} left (${breakSettings.snoozeMinutes} min each). Click 'Snooze' or take a break now.`;
+    } else {
+        message += 'You must take a break NOW!';
+    }
+    
+    browser.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon-128.png',
+        title: '⛔ Mentis.co - Strict Break Mode',
+        message: message,
+        priority: 2,
+        buttons: [
+            { title: 'Snooze' },
+            { title: 'Take Break' }
+        ],
+        requireInteraction: true
+    });
+    
+    if (snoozeCount >= maxSnooze) {
+        browser.tabs.create({ 
+            url: browser.runtime.getURL('break-lock.html'),
+            active: true 
+        });
+    }
+}
+
+// Flexible break notification
+function showFlexibleBreakNotification() {
+    browser.notifications.create({
+        type: 'basic',
+        iconUrl: 'icons/icon-128.png',
+        title: '🧠 Mentis.co - Break Reminder',
+        message: 'You\'ve been working for a while! Take a 5-minute break?',
+        priority: 1,
+        buttons: [
+            { title: 'Snooze' },
+            { title: 'Dismiss' }
+        ]
+    });
+}
+
+// Handle notification button clicks
+browser.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {
+    if (buttonIndex === 0) {
+        // Snooze clicked
+        browser.storage.local.get(['snoozeCount'], (result) => {
+            const snoozeCount = (result.snoozeCount || 0) + 1;
+            browser.storage.local.set({ snoozeCount: snoozeCount });
+            
+            browser.alarms.create('snoozeAlarm', { 
+                delayInMinutes: breakSettings.snoozeMinutes 
+            });
+            
+            browser.notifications.clear(notificationId);
+            console.log('⏰ Break snoozed for ' + breakSettings.snoozeMinutes + ' minutes');
+        });
+    } else if (buttonIndex === 1) {
+        browser.notifications.clear(notificationId);
+        if (breakSettings.strictMode) {
+            browser.tabs.create({ 
+                url: browser.runtime.getURL('break-timer.html'),
+                active: true 
+            });
+        }
+    }
+});
+
+// Snooze alarm handler
+browser.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === 'snoozeAlarm') {
+        console.log('⏰ Snooze alarm triggered, re-checking break');
+        checkBreakReminder();
+    }
+});
+
+// Initialize break settings
+loadBreakSettings();
+
+console.log('Chrome/Edge background loaded successfully');

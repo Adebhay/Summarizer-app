@@ -131,4 +131,134 @@ document.getElementById('summarizeBtn').addEventListener('click', async () => {
 });
 
 setInterval(loadStats, 30000);
+
+// ============================================================
+// VOICE SETTINGS UI LOGIC
+// ============================================================
+
+// Store voice settings globally
+let voiceSettings = {
+    rate: 0.9,
+    pitch: 1.0,
+    volume: 1.0
+};
+
+// Load saved voice settings
+chrome.storage.local.get(['voiceSettings'], (result) => {
+    if (result.voiceSettings) {
+        const settings = result.voiceSettings;
+        voiceSettings = settings;
+        document.getElementById('rate-slider').value = settings.rate || 0.9;
+        document.getElementById('pitch-slider').value = settings.pitch || 1.0;
+        document.getElementById('volume-slider').value = settings.volume || 1.0;
+        document.getElementById('rate-display').textContent = settings.rate || 0.9;
+        document.getElementById('pitch-display').textContent = settings.pitch || 1.0;
+        document.getElementById('volume-display').textContent = settings.volume || 1.0;
+    }
+});
+
+// Toggle voice settings panel
+document.getElementById('toggle-voice-settings').addEventListener('click', () => {
+    const panel = document.getElementById('voice-settings');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+});
+
+// Update displays on slider change
+document.getElementById('rate-slider').addEventListener('input', function() {
+    document.getElementById('rate-display').textContent = this.value;
+    voiceSettings.rate = parseFloat(this.value);
+});
+document.getElementById('pitch-slider').addEventListener('input', function() {
+    document.getElementById('pitch-display').textContent = this.value;
+    voiceSettings.pitch = parseFloat(this.value);
+});
+document.getElementById('volume-slider').addEventListener('input', function() {
+    document.getElementById('volume-display').textContent = this.value;
+    voiceSettings.volume = parseFloat(this.value);
+});
+
+// Test voice button
+document.getElementById('test-voice-btn').addEventListener('click', function() {
+    speakSummary('Hello! This is your personalized Mentis.co voice. Adjust the settings to your liking.');
+});
+
+// Save voice settings
+document.getElementById('save-voice-btn').addEventListener('click', function() {
+    chrome.storage.local.set({ voiceSettings: voiceSettings }, () => {
+        alert('✅ Voice settings saved!');
+        document.getElementById('voice-settings').style.display = 'none';
+    });
+});
+
+// ============================================================
+// BREAK SETTINGS UI LOGIC
+// ============================================================
+
+// Load saved break settings
+chrome.storage.local.get(['breakSettings'], (result) => {
+    if (result.breakSettings) {
+        const settings = result.breakSettings;
+        document.getElementById('break-interval').value = settings.intervalMinutes || 30;
+        document.getElementById('snooze-duration').value = settings.snoozeMinutes || 5;
+        document.getElementById('strict-mode').checked = settings.strictMode || false;
+    }
+});
+
+// Toggle break settings panel
+document.getElementById('toggle-break-settings').addEventListener('click', () => {
+    const panel = document.getElementById('break-settings');
+    panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+});
+
+// Save break settings
+document.getElementById('save-break-settings').addEventListener('click', () => {
+    const settings = {
+        intervalMinutes: parseInt(document.getElementById('break-interval').value),
+        snoozeMinutes: parseInt(document.getElementById('snooze-duration').value),
+        strictMode: document.getElementById('strict-mode').checked,
+    };
+    
+    chrome.storage.local.set({ breakSettings: settings }, () => {
+        // Send message to background to update alarm
+        chrome.runtime.sendMessage({ 
+            type: 'updateBreakSettings', 
+            settings: settings 
+        });
+        alert('✅ Break settings saved!');
+        document.getElementById('break-settings').style.display = 'none';
+    });
+});
+
+// ============================================================
+// UPDATED speakSummary FUNCTION (uses voiceSettings)
+// ============================================================
+
+// Replace the existing speakSummary function with this enhanced version
+function speakSummary(text) {
+    if ('speechSynthesis' in window) {
+        try {
+            const utterance = new SpeechSynthesisUtterance(text);
+            // Apply user settings
+            utterance.rate = voiceSettings.rate || 0.9;
+            utterance.pitch = voiceSettings.pitch || 1.0;
+            utterance.volume = voiceSettings.volume || 1.0;
+            
+            // Try to find a good voice
+            const voices = speechSynthesis.getVoices();
+            // Prefer a US English female voice
+            let preferredVoice = voices.find(v => v.lang === 'en-US' && v.name.includes('Female'));
+            if (!preferredVoice) {
+                preferredVoice = voices.find(v => v.lang === 'en-US');
+            }
+            if (preferredVoice) {
+                utterance.voice = preferredVoice;
+            }
+            
+            speechSynthesis.cancel();
+            speechSynthesis.speak(utterance);
+        } catch (e) {
+            console.error('Speech error:', e);
+        }
+    }
+}
 console.log('Popup loaded');
