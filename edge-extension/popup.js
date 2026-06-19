@@ -1,4 +1,4 @@
-// chrome-extension/popup.js - Complete Updated Version
+// chrome-extension/popup.js - Complete Fixed Version
 
 const SERVER_URL = 'https://summarizer-app-ybx8.onrender.com';
 
@@ -6,7 +6,6 @@ const SERVER_URL = 'https://summarizer-app-ybx8.onrender.com';
 // HELPER FUNCTIONS
 // ============================================================
 
-// Consistent date key function (avoid timezone issues)
 function getDateKey(date) {
     return date.getFullYear() + '-' + 
            String(date.getMonth() + 1).padStart(2, '0') + '-' + 
@@ -32,23 +31,30 @@ function formatTimeShort(minutes) {
     return hours + 'h ' + mins + 'm';
 }
 
-// ✅ FIXED: Proper 12-hour time formatting (no more "0 PM")
 function formatTimestamp(timestamp) {
+    if (!timestamp) return '--:--';
     const date = new Date(timestamp);
+    if (isNaN(date.getTime())) return '--:--';
+    
     let hours = date.getHours();
     const minutes = date.getMinutes();
     const ampm = hours >= 12 ? 'PM' : 'AM';
     
-    // Convert 0 to 12 for midnight, keep 12 as 12 for noon
     if (hours === 0) {
         hours = 12;
     } else if (hours > 12) {
         hours = hours - 12;
     }
-    // hours between 1-11 stay the same, 12 stays 12
     
     const formattedMinutes = String(minutes).padStart(2, '0');
     return hours + ':' + formattedMinutes + ' ' + ampm;
+}
+
+function getHourLabel(hour) {
+    if (hour === 0) return '12 AM';
+    if (hour === 12) return '12 PM';
+    if (hour < 12) return hour + ' AM';
+    return (hour - 12) + ' PM';
 }
 
 // ============================================================
@@ -56,7 +62,6 @@ function formatTimestamp(timestamp) {
 // ============================================================
 let userId = 'Loading...';
 
-// Store voice settings globally
 let voiceSettings = {
     language: 'en-US',
     voiceName: '',
@@ -205,13 +210,9 @@ function displayStats(activity) {
 let currentViewDate = new Date();
 let currentView = 'day';
 
-// Load calendar data from local storage
 function loadCalendarData(date) {
     const dateStr = getDateKey(date);
     
-    console.log('📅 Calendar looking for date:', dateStr);
-    
-    // Update date display
     document.getElementById('current-date-display').textContent = date.toLocaleDateString('en-US', {
         weekday: 'short',
         month: 'short',
@@ -219,15 +220,9 @@ function loadCalendarData(date) {
         year: 'numeric'
     });
     
-    // Read from local storage
     chrome.storage.local.get(['activityData'], (result) => {
         const activityData = (result && result.activityData) || {};
         const dayData = activityData[dateStr];
-        
-        console.log('📊 Data found for', dateStr, ':', dayData ? 'YES' : 'NO');
-        if (dayData) {
-            console.log('📊 Sites:', Object.keys(dayData.sites || {}), 'Total:', dayData.totalTime);
-        }
         
         if (dayData && (Object.keys(dayData.sites || {}).length > 0 || (dayData.timeline && dayData.timeline.length > 0))) {
             displayTimelineFromLocal(dayData, date);
@@ -241,10 +236,8 @@ function loadCalendarData(date) {
     });
 }
 
-// ✅ FIXED: Display timeline with proper start/end times
 function displayTimelineFromLocal(dayData, date) {
     const container = document.getElementById('timeline-list');
-    
     const timeline = dayData.timeline || [];
     const sites = dayData.sites || {};
     
@@ -253,8 +246,11 @@ function displayTimelineFromLocal(dayData, date) {
         return;
     }
     
-    // If we have sites but no timeline, create a simple view
-    if (timeline.length === 0 && Object.keys(sites).length > 0) {
+    const validTimeline = timeline.filter(entry => {
+        return entry.duration > 0 && entry.startTime && entry.endTime;
+    });
+    
+    if (validTimeline.length === 0 && Object.keys(sites).length > 0) {
         let html = '';
         const sortedSites = Object.entries(sites).sort((a, b) => b[1] - a[1]);
         sortedSites.forEach(([site, seconds]) => {
@@ -268,9 +264,8 @@ function displayTimelineFromLocal(dayData, date) {
         return;
     }
     
-    // Group by hour
     const grouped = {};
-    timeline.forEach(entry => {
+    validTimeline.forEach(entry => {
         const hour = new Date(entry.timestamp).getHours();
         if (!grouped[hour]) grouped[hour] = [];
         grouped[hour].push(entry);
@@ -280,42 +275,34 @@ function displayTimelineFromLocal(dayData, date) {
     const sortedHours = Object.keys(grouped).sort((a, b) => a - b);
     
     sortedHours.forEach(hour => {
-        // ✅ FIXED: Use the helper function for proper 12-hour labels
         const hourLabel = getHourLabel(hour);
         
         html += '<div style="margin-bottom:8px;">';
         html += '<div style="font-weight:600; font-size:12px; color:#1a73e8; margin-bottom:4px;">' + hourLabel + '</div>';
         
         grouped[hour].forEach(entry => {
-            // ✅ FIXED: Use proper start and end times
-            const startTime = entry.startTime ? formatTimestamp(entry.startTime) : '?';
-            const endTime = entry.endTime ? formatTimestamp(entry.endTime) : '?';
+            const startTime = formatTimestamp(entry.startTime);
+            const endTime = formatTimestamp(entry.endTime);
             const duration = Math.round(entry.duration / 60000);
             
-            // Only show duration if it's more than 0
-            const durationDisplay = duration > 0 ? ' (' + duration + 'm)' : '';
-            
-            html += '<div class="timeline-entry">';
-            html += '<span class="site-name">' + entry.site + '</span>';
-            html += '<span class="site-time">' + startTime + ' - ' + endTime + durationDisplay + '</span>';
-            html += '</div>';
+            if (duration > 0) {
+                html += '<div class="timeline-entry">';
+                html += '<span class="site-name">' + entry.site + '</span>';
+                html += '<span class="site-time">' + startTime + ' - ' + endTime + ' (' + duration + 'm)</span>';
+                html += '</div>';
+            }
         });
         
         html += '</div>';
     });
     
+    if (html === '') {
+        html = '<div style="text-align:center; color:#5f6368; padding:20px;">No valid activity recorded for this date</div>';
+    }
+    
     container.innerHTML = html;
 }
 
-// Helper for 12-hour time labels
-function getHourLabel(hour) {
-    if (hour === 0) return '12 AM';
-    if (hour === 12) return '12 PM';
-    if (hour < 12) return hour + ' AM';
-    return (hour - 12) + ' PM';
-}
-
-// Update calendar stats from local data
 function updateCalendarStatsFromLocal(dayData) {
     const sites = dayData.sites || {};
     const totalTime = dayData.totalTime || 0;
@@ -325,7 +312,6 @@ function updateCalendarStatsFromLocal(dayData) {
     document.getElementById('cal-total-time').textContent = formatTimeShort(totalMinutes);
     document.getElementById('cal-site-count').textContent = siteCount;
     
-    // Simple productivity score (placeholder - can be enhanced with site classification)
     const productivity = siteCount > 0 ? Math.min(100, Math.round((totalMinutes / (siteCount * 15)) * 10)) : 0;
     document.getElementById('cal-productivity').textContent = Math.min(100, productivity) + '%';
 }
@@ -357,7 +343,6 @@ document.getElementById('next-day').addEventListener('click', function() {
     }
 });
 
-// View toggle
 document.getElementById('view-day').addEventListener('click', function() {
     currentView = 'day';
     document.querySelectorAll('.view-btn').forEach(btn => btn.classList.remove('active'));
@@ -379,7 +364,6 @@ document.getElementById('view-month').addEventListener('click', function() {
     loadMonthData();
 });
 
-// Toggle calendar panel
 document.getElementById('toggle-calendar').addEventListener('click', function() {
     const panel = document.getElementById('calendar-panel');
     if (panel.style.display === 'none' || panel.style.display === '') {
@@ -391,7 +375,6 @@ document.getElementById('toggle-calendar').addEventListener('click', function() 
     }
 });
 
-// Week view
 function loadWeekData() {
     const startDate = new Date(currentViewDate);
     startDate.setDate(startDate.getDate() - startDate.getDay());
@@ -465,7 +448,6 @@ function displayWeekView(data, startDate, endDate) {
     container.innerHTML = html;
 }
 
-// Month view
 function loadMonthData() {
     const startDate = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth(), 1);
     const endDate = new Date(currentViewDate.getFullYear(), currentViewDate.getMonth() + 1, 0);
