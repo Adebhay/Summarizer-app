@@ -1,4 +1,4 @@
-// chrome-extension/background.js - Fixed timeline durations
+// chrome-extension/background.js - Fixed duration tracking
 
 const API_URL = 'https://summarizer-app-ybx8.onrender.com/api/activity';
 
@@ -87,7 +87,7 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     }
 });
 
-// Save activity with proper start/end times
+// Save activity with timestamp tracking
 async function saveActivity(domain, duration, startTime, endTime) {
     const storage = getStorage();
     if (!storage) {
@@ -122,7 +122,10 @@ async function doSaveActivity(domain, duration, startTime, endTime) {
     const start = startTime || new Date(now.getTime() - duration).toISOString();
     const end = endTime || now.toISOString();
     
-    console.log('📝 Saving activity for date:', today, 'domain:', domain, 'duration:', duration);
+    // ✅ FIX: Ensure duration is correct (at least 1 second)
+    const finalDuration = Math.max(duration, 1000); // Minimum 1 second
+    
+    console.log('📝 Saving activity for date:', today, 'domain:', domain, 'duration:', finalDuration);
     
     storage.get(['activityData'], async (result) => {
         if (chrome.runtime.lastError) {
@@ -154,13 +157,13 @@ async function doSaveActivity(domain, duration, startTime, endTime) {
         if (!activityData[today].sites[domain]) {
             activityData[today].sites[domain] = 0;
         }
-        activityData[today].sites[domain] += duration;
-        activityData[today].totalTime += duration;
+        activityData[today].sites[domain] += finalDuration;
+        activityData[today].totalTime += finalDuration;
         
         // ✅ FIX: Store timeline entry with proper start and end times
         activityData[today].timeline.push({
             site: domain,
-            duration: duration,
+            duration: finalDuration,
             startTime: start,
             endTime: end,
             timestamp: start
@@ -200,19 +203,19 @@ async function doSaveActivity(domain, duration, startTime, endTime) {
     });
 }
 
-// Track when user switches tabs - save the previous tab with proper end time
+// ✅ FIXED: Track when user switches tabs - save the previous tab with proper end time
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
     // Save the previous tab if it was being tracked
-    if (currentTab && currentStartTime && currentDomain) {
+    if (currentDomain && currentStartTime) {
         const endTime = new Date().toISOString();
         const duration = Date.now() - currentStartTime;
         if (duration > 1000) {
             await saveActivity(currentDomain, duration, new Date(currentStartTime).toISOString(), endTime);
         }
         // Clear current tracking
-        currentTab = null;
-        currentStartTime = null;
         currentDomain = null;
+        currentStartTime = null;
+        currentTab = null;
     }
     
     // Start tracking the new tab
@@ -225,16 +228,16 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
             currentStartTime = Date.now();
             console.log('🔄 Started tracking:', currentDomain);
         } else {
-            currentTab = null;
-            currentStartTime = null;
             currentDomain = null;
+            currentStartTime = null;
+            currentTab = null;
         }
     } catch (error) {
         console.log('Error getting tab:', error);
     }
 });
 
-// Track URL changes within the same tab
+// ✅ FIXED: Track URL changes within the same tab
 chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
     // If the URL changed and this is the active tab
     if (changeInfo.url && tab.active && tab.url && tab.url.startsWith('http')) {
@@ -268,14 +271,11 @@ chrome.tabs.onRemoved.addListener(async (tabId) => {
         if (duration > 1000) {
             await saveActivity(currentDomain, duration, new Date(currentStartTime).toISOString(), endTime);
         }
-        currentTab = null;
-        currentStartTime = null;
         currentDomain = null;
+        currentStartTime = null;
+        currentTab = null;
     }
 });
-
-// Save when browser is about to close (if possible)
-// Note: This is best effort, not guaranteed to run
 
 // Break reminder
 function checkBreakReminder() {
