@@ -1,4 +1,4 @@
-// chrome-extension/background.js - Fixed for Chrome & Edge
+// chrome-extension/background.js - Updated with timestamp tracking
 
 const API_URL = 'https://summarizer-app-ybx8.onrender.com/api/activity';
 
@@ -6,19 +6,48 @@ let currentTab = null;
 let currentStartTime = null;
 let userId = null;
 
-// Get user ID with proper error handling
+// Safe storage access function
+function getStorage() {
+    try {
+        if (typeof chrome !== 'undefined' && chrome.storage && chrome.storage.local) {
+            return chrome.storage.local;
+        }
+        console.warn('Chrome storage not available');
+        return null;
+    } catch (e) {
+        console.warn('Storage access error:', e);
+        return null;
+    }
+}
+
+// Initialize user ID
 function initializeUserId() {
-    chrome.storage.local.get(['userId'], (result) => {
+    const storage = getStorage();
+    if (!storage) {
+        console.error('Storage not available, using temporary ID');
+        userId = 'temp_' + Math.random().toString(36).substring(7);
+        return;
+    }
+    
+    storage.get(['userId'], (result) => {
         console.log('Storage result:', result);
+        if (chrome.runtime.lastError) {
+            console.error('Storage error:', chrome.runtime.lastError);
+            userId = 'temp_' + Math.random().toString(36).substring(7);
+            return;
+        }
         
-        // Check if result exists and has userId
         if (result && result.userId) {
             userId = result.userId;
             console.log('Existing User ID:', userId);
         } else {
             userId = 'user_' + Math.random().toString(36).substring(7);
-            chrome.storage.local.set({ userId: userId }, () => {
-                console.log('New User ID created:', userId);
+            storage.set({ userId: userId }, () => {
+                if (chrome.runtime.lastError) {
+                    console.error('Storage set error:', chrome.runtime.lastError);
+                } else {
+                    console.log('New User ID created:', userId);
+                }
             });
         }
     });
@@ -30,49 +59,107 @@ initializeUserId();
 // Make userId available to popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
     if (request.type === 'getUserId') {
-        chrome.storage.local.get(['userId'], (result) => {
+        const storage = getStorage();
+        if (!storage) {
+            const tempId = 'temp_' + Math.random().toString(36).substring(7);
+            sendResponse({ userId: tempId });
+            return true;
+        }
+        
+        storage.get(['userId'], (result) => {
+            if (chrome.runtime.lastError) {
+                const tempId = 'temp_' + Math.random().toString(36).substring(7);
+                sendResponse({ userId: tempId });
+                return;
+            }
+            
             if (result && result.userId) {
                 sendResponse({ userId: result.userId });
             } else {
                 const newUserId = 'user_' + Math.random().toString(36).substring(7);
-                chrome.storage.local.set({ userId: newUserId }, () => {
+                storage.set({ userId: newUserId }, () => {
                     sendResponse({ userId: newUserId });
                 });
             }
         });
-        return true; // Keep message channel open for async response
+        return true;
     }
 });
 
-// Save activity
+// Save activity with timestamp tracking
 async function saveActivity(domain, duration) {
-    // Ensure userId exists
+    const storage = getStorage();
+    if (!storage) {
+        console.log('Storage not available, skipping save');
+        return;
+    }
+    
     if (!userId) {
         const result = await new Promise((resolve) => {
-            chrome.storage.local.get(['userId'], resolve);
+            storage.get(['userId'], resolve);
         });
         if (result && result.userId) {
             userId = result.userId;
         } else {
             userId = 'user_' + Math.random().toString(36).substring(7);
-            chrome.storage.local.set({ userId: userId });
+            storage.set({ userId: userId });
         }
     }
     await doSaveActivity(domain, duration);
 }
 
 async function doSaveActivity(domain, duration) {
+    const storage = getStorage();
+    if (!storage) return;
+    
     const today = new Date().toISOString().split('T')[0];
-    chrome.storage.local.get(['activityData'], async (result) => {
+    const now = new Date().toISOString();
+    const startTime = new Date(Date.now() - duration).toISOString();
+    
+    storage.get(['activityData'], async (result) => {
+        if (chrome.runtime.lastError) {
+            console.error('Storage read error:', chrome.runtime.lastError);
+            return;
+        }
+        
         let activityData = (result && result.activityData) || {};
+        
         if (!activityData[today]) {
-            activityData[today] = {};
+            activityData[today] = {
+                sites: {},
+                timeline: [],
+                totalTime: 0
+            };
         }
-        if (!activityData[today][domain]) {
-            activityData[today][domain] = 0;
+        
+        // Store site time (aggregated)
+        if (!activityData[today].sites[domain]) {
+            activityData[today].sites[domain] = 0;
         }
-        activityData[today][domain] += duration;
-        chrome.storage.local.set({ activityData });
+        activityData[today].sites[domain] += duration;
+        activityData[today].totalTime += duration;
+        
+        // Store timeline entry with timestamp
+        activityData[today].timeline.push({
+            site: domain,
+            duration: duration,
+            startTime: startTime,
+            endTime: now,
+            timestamp: now
+        });
+        
+        // Keep only last 500 timeline entries to avoid storage limits
+        if (activityData[today].timeline.length > 500) {
+            activityData[today].timeline = activityData[today].timeline.slice(-500);
+        }
+        
+        storage.set({ activityData }, () => {
+            if (chrome.runtime.lastError) {
+                console.error('Storage write error:', chrome.runtime.lastError);
+            }
+        });
+        
+        // Send to backend with timestamp data
         try {
             await fetch(API_URL, {
                 method: 'POST',
@@ -80,10 +167,12 @@ async function doSaveActivity(domain, duration) {
                 body: JSON.stringify({
                     userId: userId,
                     date: today,
-                    activityData: activityData[today]
+                    activityData: activityData[today].sites,
+                    timeline: activityData[today].timeline,
+                    totalTime: activityData[today].totalTime
                 })
             });
-            console.log('Data sent to backend');
+            console.log('Data sent to backend with timeline');
         } catch (error) {
             console.log('Backend not reachable, data saved locally');
         }
@@ -92,44 +181,60 @@ async function doSaveActivity(domain, duration) {
 
 // Break reminder
 function checkBreakReminder() {
+    const storage = getStorage();
+    if (!storage) return;
+    
     const today = new Date().toISOString().split('T')[0];
-    chrome.storage.local.get(['lastBreakReminder', 'activityData'], (result) => {
+    storage.get(['lastBreakReminder', 'activityData'], (result) => {
+        if (chrome.runtime.lastError) {
+            console.error('Storage read error:', chrome.runtime.lastError);
+            return;
+        }
+        
         const lastReminder = (result && result.lastBreakReminder) || '';
         const activityData = (result && result.activityData) || {};
         const todayData = activityData[today] || {};
-        const totalSeconds = Object.values(todayData).reduce((a, b) => a + b, 0);
+        const totalSeconds = Object.values(todayData.sites || {}).reduce((a, b) => a + b, 0);
         const totalMinutes = Math.round(totalSeconds / 60);
         
         console.log('Break check: ' + totalMinutes + ' minutes today');
         
         if (totalMinutes > 60 && lastReminder !== today) {
             console.log('Sending break notification...');
-            chrome.notifications.create({
-                type: 'basic',
-                iconUrl: 'icons/icon-128.png',
-                title: 'Mentis.co - Break Reminder',
-                message: 'You\'ve been browsing for over an hour! Take a 5-minute break.',
-                priority: 2
-            }, (notificationId) => {
-                if (chrome.runtime.lastError) {
-                    console.error('Notification error:', chrome.runtime.lastError);
-                } else {
-                    console.log('Notification sent:', notificationId);
-                }
-            });
-            chrome.storage.local.set({ lastBreakReminder: today });
+            try {
+                chrome.notifications.create({
+                    type: 'basic',
+                    iconUrl: 'icons/icon-128.png',
+                    title: 'Mentis.co - Break Reminder',
+                    message: 'You\'ve been browsing for over an hour! Take a 5-minute break.',
+                    priority: 2
+                }, (notificationId) => {
+                    if (chrome.runtime.lastError) {
+                        console.error('Notification error:', chrome.runtime.lastError);
+                    } else {
+                        console.log('Notification sent:', notificationId);
+                    }
+                });
+                storage.set({ lastBreakReminder: today });
+            } catch (e) {
+                console.error('Notification creation error:', e);
+            }
         }
     });
 }
 
 // Set up alarm
-chrome.alarms.create('breakReminder', { periodInMinutes: 15 });
-chrome.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === 'breakReminder') {
-        console.log('Break reminder alarm triggered');
-        checkBreakReminder();
-    }
-});
+try {
+    chrome.alarms.create('breakReminder', { periodInMinutes: 15 });
+    chrome.alarms.onAlarm.addListener((alarm) => {
+        if (alarm.name === 'breakReminder') {
+            console.log('Break reminder alarm triggered');
+            checkBreakReminder();
+        }
+    });
+} catch (e) {
+    console.warn('Alarm setup error:', e);
+}
 
 // Track tab changes
 chrome.tabs.onActivated.addListener(async (activeInfo) => {
@@ -141,7 +246,7 @@ chrome.tabs.onActivated.addListener(async (activeInfo) => {
     }
     try {
         const tab = await chrome.tabs.get(activeInfo.tabId);
-        if (tab.url && tab.url.startsWith('http')) {
+        if (tab && tab.url && tab.url.startsWith('http')) {
             const url = new URL(tab.url);
             currentTab = url.hostname.replace('www.', '');
             currentStartTime = Date.now();
@@ -163,190 +268,14 @@ chrome.tabs.onUpdated.addListener(async (tabId, changeInfo, tab) => {
                 await saveActivity(currentTab, duration);
             }
         }
-        const url = new URL(tab.url);
-        currentTab = url.hostname.replace('www.', '');
-        currentStartTime = Date.now();
-    }
-});
-
-// ============================================================
-// BREAK SETTINGS WITH STRICT MODE
-// ============================================================
-
-let breakSettings = {
-    intervalMinutes: 30,
-    snoozeMinutes: 5,
-    strictMode: false,
-    maxSnooze: 3
-};
-
-// Load break settings from storage
-function loadBreakSettings() {
-    chrome.storage.local.get(['breakSettings'], (result) => {
-        if (result.breakSettings) {
-            breakSettings = result.breakSettings;
-            if (breakSettings.strictMode) {
-                breakSettings.maxSnooze = 3;
-            }
-        }
-        updateBreakAlarm();
-    });
-}
-
-// Update break alarm with new interval
-function updateBreakAlarm() {
-    chrome.alarms.clear('breakReminder', () => {
-        chrome.alarms.create('breakReminder', {
-            periodInMinutes: breakSettings.intervalMinutes
-        });
-        console.log('⏰ Break alarm set to every ' + breakSettings.intervalMinutes + ' minutes');
-    });
-}
-
-// Listen for break settings updates from popup
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.type === 'updateBreakSettings') {
-        breakSettings = request.settings;
-        if (breakSettings.strictMode) {
-            breakSettings.maxSnooze = 3;
-        }
-        chrome.storage.local.set({ breakSettings: breakSettings });
-        updateBreakAlarm();
-        sendResponse({ success: true });
-        return true;
-    }
-});
-
-// Modified break reminder with strict mode
-function checkBreakReminder() {
-    const today = new Date().toISOString().split('T')[0];
-    chrome.storage.local.get(['lastBreakReminder', 'snoozeCount', 'activityData'], (result) => {
-        const lastReminder = result.lastBreakReminder || '';
-        const snoozeCount = result.snoozeCount || 0;
-        const activityData = result.activityData || {};
-        const todayData = activityData[today] || {};
-        const totalSeconds = Object.values(todayData).reduce((a, b) => a + b, 0);
-        const totalMinutes = Math.round(totalSeconds / 60);
-        
-        let minutesSinceLastBreak = 999;
-        if (lastReminder) {
-            chrome.storage.local.get(['lastBreakTimestamp'], (timeResult) => {
-                const lastBreakTimestamp = timeResult.lastBreakTimestamp || 0;
-                minutesSinceLastBreak = Math.floor((Date.now() - lastBreakTimestamp) / 60000);
-                processBreakCheck(minutesSinceLastBreak, totalMinutes, snoozeCount, today, lastReminder);
-            });
-        } else {
-            processBreakCheck(999, totalMinutes, snoozeCount, today, lastReminder);
-        }
-    });
-}
-
-function processBreakCheck(minutesSinceLastBreak, totalMinutes, snoozeCount, today, lastReminder) {
-    let shouldRemind = false;
-    if (minutesSinceLastBreak >= breakSettings.intervalMinutes && lastReminder !== today) {
-        shouldRemind = true;
-    } else if (totalMinutes > 60 && lastReminder !== today) {
-        shouldRemind = true;
-    }
-    
-    if (shouldRemind) {
-        console.log('🔔 Break reminder triggered');
-        if (breakSettings.strictMode) {
-            showStrictBreakNotification(snoozeCount);
-        } else {
-            showFlexibleBreakNotification();
-        }
-        chrome.storage.local.set({ 
-            lastBreakReminder: today,
-            lastBreakTimestamp: Date.now()
-        });
-        chrome.storage.local.set({ snoozeCount: 0 });
-    }
-}
-
-// Strict break notification
-function showStrictBreakNotification(snoozeCount) {
-    const maxSnooze = breakSettings.maxSnooze || 3;
-    const remainingSnoozes = maxSnooze - snoozeCount;
-    
-    let message = '⛔ Break time! ';
-    if (snoozeCount < maxSnooze) {
-        message += `You have ${remainingSnoozes} snooze${remainingSnoozes > 1 ? 's' : ''} left (${breakSettings.snoozeMinutes} min each). Click 'Snooze' or take a break now.`;
-    } else {
-        message += 'You must take a break NOW!';
-    }
-    
-    chrome.notifications.create({
-        type: 'basic',
-        iconUrl: 'icons/icon-128.png',
-        title: '⛔ Mentis.co - Strict Break Mode',
-        message: message,
-        priority: 2,
-        buttons: [
-            { title: 'Snooze' },
-            { title: 'Take Break' }
-        ],
-        requireInteraction: true
-    });
-    
-    if (snoozeCount >= maxSnooze) {
-        chrome.tabs.create({ 
-            url: chrome.runtime.getURL('break-lock.html'),
-            active: true 
-        });
-    }
-}
-
-// Flexible break notification
-function showFlexibleBreakNotification() {
-    chrome.notifications.create({
-        type: 'basic',
-        iconUrl: 'icons/icon-128.png',
-        title: '🧠 Mentis.co - Break Reminder',
-        message: 'You\'ve been working for a while! Take a 5-minute break?',
-        priority: 1,
-        buttons: [
-            { title: 'Snooze' },
-            { title: 'Dismiss' }
-        ]
-    });
-}
-
-// Handle notification button clicks
-chrome.notifications.onButtonClicked.addListener((notificationId, buttonIndex) => {
-    if (buttonIndex === 0) {
-        // Snooze clicked
-        chrome.storage.local.get(['snoozeCount'], (result) => {
-            const snoozeCount = (result.snoozeCount || 0) + 1;
-            chrome.storage.local.set({ snoozeCount: snoozeCount });
-            
-            chrome.alarms.create('snoozeAlarm', { 
-                delayInMinutes: breakSettings.snoozeMinutes 
-            });
-            
-            chrome.notifications.clear(notificationId);
-            console.log('⏰ Break snoozed for ' + breakSettings.snoozeMinutes + ' minutes');
-        });
-    } else if (buttonIndex === 1) {
-        chrome.notifications.clear(notificationId);
-        if (breakSettings.strictMode) {
-            chrome.tabs.create({ 
-                url: chrome.runtime.getURL('break-timer.html'),
-                active: true 
-            });
+        try {
+            const url = new URL(tab.url);
+            currentTab = url.hostname.replace('www.', '');
+            currentStartTime = Date.now();
+        } catch (e) {
+            console.log('Error parsing URL:', e);
         }
     }
 });
 
-// Snooze alarm handler
-chrome.alarms.onAlarm.addListener((alarm) => {
-    if (alarm.name === 'snoozeAlarm') {
-        console.log('⏰ Snooze alarm triggered, re-checking break');
-        checkBreakReminder();
-    }
-});
-
-// Initialize break settings
-loadBreakSettings();
-
-console.log('Chrome/Edge background loaded successfully');
+console.log('Chrome/Edge background loaded with calendar support');

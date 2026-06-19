@@ -139,6 +139,63 @@ app.post('/api/summarize', async (req, res) => {
 });
 
 // ============================================================
+// TIMELINE ENDPOINTS
+// ============================================================
+
+// Get user's timeline for a specific date
+app.get('/api/timeline/:userId/:date', (req, res) => {
+    const { userId, date } = req.params;
+    
+    const userDataObj = userData[userId];
+    if (!userDataObj) {
+        return res.json({ success: true, timeline: [], sites: {}, totalTime: 0 });
+    }
+    
+    const dayData = userDataObj[date];
+    if (!dayData) {
+        return res.json({ success: true, timeline: [], sites: {}, totalTime: 0 });
+    }
+    
+    res.json({ 
+        success: true, 
+        timeline: dayData.timeline || [],
+        sites: dayData.sites || {},
+        totalTime: dayData.totalTime || 0
+    });
+});
+
+// Get activity for a date range (week/month)
+app.get('/api/timeline/:userId/:startDate/:endDate', (req, res) => {
+    const { userId, startDate, endDate } = req.params;
+    
+    const userDataObj = userData[userId];
+    if (!userDataObj) {
+        return res.json({ success: true, data: [] });
+    }
+    
+    const result = [];
+    const start = new Date(startDate);
+    const end = new Date(endDate);
+    
+    for (const [date, data] of Object.entries(userDataObj)) {
+        const currentDate = new Date(date);
+        if (currentDate >= start && currentDate <= end) {
+            result.push({
+                date: date,
+                sites: data.sites || {},
+                totalTime: data.totalTime || 0,
+                timeline: data.timeline || []
+            });
+        }
+    }
+    
+    // Sort by date
+    result.sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    res.json({ success: true, data: result });
+});
+
+// ============================================================
 // START SERVER
 // ============================================================
 
